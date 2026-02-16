@@ -116,6 +116,12 @@ async def demo():
         return HTMLResponse(content=f.read())
 
 
+@app.get("/beta", response_class=HTMLResponse)
+async def beta():
+    with open("templates/beta.html") as f:
+        return HTMLResponse(content=f.read())
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app:app", host="0.0.0.0", port=PORT, reload=True)

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EdOpt Assistant — Beta</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f4f8;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #1863DC;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header svg {
+            width: 28px;
+            height: 28px;
+            fill: white;
+            flex-shrink: 0;
+        }
+        .header-text h1 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+        .header-text p {
+            font-size: 12px;
+            opacity: 0.85;
+            margin-top: 2px;
+        }
+        .beta-badge {
+            background: rgba(255,255,255,0.2);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 3px 10px;
+            border-radius: 12px;
+            margin-left: auto;
+            letter-spacing: 0.5px;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            max-width: 860px;
+            width: 100%;
+            margin: 0 auto;
+        }
+        .msg {
+            max-width: 80%;
+            padding: 14px 18px;
+            border-radius: 16px;
+            line-height: 1.55;
+            font-size: 15px;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .msg-assistant {
+            background: white;
+            color: #1a1a2e;
+            align-self: flex-start;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .msg-user {
+            background: #1863DC;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .msg-assistant h1, .msg-assistant h2, .msg-assistant h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 12px 0 6px 0;
+            color: #1863DC;
+        }
+        .msg-assistant h1:first-child, .msg-assistant h2:first-child, .msg-assistant h3:first-child {
+            margin-top: 0;
+        }
+        .msg-assistant strong { color: #1a1a2e; }
+        .msg-assistant a { color: #1863DC; text-decoration: underline; }
+        .msg-assistant a:hover { color: #0d4ba0; }
+        .msg-assistant ul, .msg-assistant ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+        .msg-assistant li { margin: 4px 0; }
+        .msg-assistant p { margin: 8px 0; }
+        .msg-assistant p:first-child { margin-top: 0; }
+        .msg-assistant p:last-child { margin-bottom: 0; }
+        .msg-assistant code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        .typing {
+            display: flex;
+            gap: 5px;
+            padding: 14px 18px;
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #94a3b8;
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        .input-area {
+            background: white;
+            border-top: 1px solid #e2e8f0;
+            padding: 16px 24px;
+            box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+        }
+        .input-row {
+            max-width: 860px;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        textarea {
+            flex: 1;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 12px 16px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            transition: border-color 0.2s;
+            min-height: 48px;
+            max-height: 120px;
+        }
+        textarea:focus { border-color: #1863DC; }
+        textarea::placeholder { color: #94a3b8; }
+        .send-btn {
+            background: #1863DC;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            width: 48px;
+            height: 48px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .send-btn:hover { background: #0d4ba0; }
+        .send-btn:disabled { background: #94a3b8; cursor: not-allowed; }
+        .send-btn svg { width: 22px; height: 22px; fill: white; }
+        .suggestions {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 0 24px 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .suggestion {
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: #475569;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .suggestion:hover {
+            border-color: #1863DC;
+            color: #1863DC;
+            background: #eff6ff;
+        }
+        @media (max-width: 600px) {
+            .msg { max-width: 90%; font-size: 14px; }
+            .chat-container { padding: 16px; }
+            .header { padding: 12px 16px; }
+            .header-text h1 { font-size: 17px; }
+            .input-area { padding: 12px 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
+        <div class="header-text">
+            <h1>EdOpt Assistant</h1>
+            <p>New Hampshire Education Options</p>
+        </div>
+        <span class="beta-badge">BETA</span>
+    </div>
+
+    <div class="chat-container" id="messages"></div>
+
+    <div class="suggestions" id="suggestions">
+        <button class="suggestion" onclick="askQuestion(this)">What homeschool options are near Concord?</button>
+        <button class="suggestion" onclick="askQuestion(this)">How do I apply for an EFA?</button>
+        <button class="suggestion" onclick="askQuestion(this)">What charter schools are in NH?</button>
+        <button class="suggestion" onclick="askQuestion(this)">What does RSA 193-A say?</button>
+        <button class="suggestion" onclick="askQuestion(this)">What's the status of HB 1268?</button>
+    </div>
+
+    <div class="input-area">
+        <div class="input-row">
+            <textarea id="input" placeholder="Ask about NH education options..." rows="1"></textarea>
+            <button class="send-btn" id="send-btn" onclick="sendMessage()">
+                <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin;
+        let sessionId = null;
+        let isLoading = false;
+
+        function renderMarkdown(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                .replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                .replace(/(<li>[\s\S]*?<\/li>)/g, function(match) {
+                    return '<ul>' + match + '</ul>';
+                })
+                .replace(/<\/ul>\s*<ul>/g, '')
+                .replace(/\n\n/g, '</p><p>')
+                .replace(/\n/g, '<br>')
+                .replace(/^/, '<p>').replace(/$/, '</p>');
+        }
+
+        function addMessage(content, role) {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'msg msg-' + role;
+            if (role === 'assistant') {
+                div.innerHTML = renderMarkdown(content);
+            } else {
+                div.textContent = content;
+            }
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showTyping() {
+            const container = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = 'typing';
+            div.id = 'typing';
+            div.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function hideTyping() {
+            const el = document.getElementById('typing');
+            if (el) el.remove();
+        }
+
+        function hideSuggestions() {
+            const el = document.getElementById('suggestions');
+            if (el) el.style.display = 'none';
+        }
+
+        function askQuestion(btn) {
+            document.getElementById('input').value = btn.textContent;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('input');
+            const sendBtn = document.getElementById('send-btn');
+            const message = input.value.trim();
+            if (!message || isLoading) return;
+
+            hideSuggestions();
+            addMessage(message, 'user');
+            input.value = '';
+            input.style.height = 'auto';
+
+            isLoading = true;
+            sendBtn.disabled = true;
+            showTyping();
+
+            try {
+                const resp = await fetch(API_BASE + '/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message, session_id: sessionId })
+                });
+                const data = await resp.json();
+                sessionId = data.session_id;
+                hideTyping();
+                addMessage(data.answer, 'assistant');
+            } catch (e) {
+                hideTyping();
+                addMessage("Sorry, I'm having trouble connecting. Please try again.", 'assistant');
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        async function init() {
+            showTyping();
+            try {
+                const resp = await fetch(API_BASE + '/greet');
+                const data = await resp.json();
+                sessionId = data.session_id;
+                hideTyping();
+                addMessage(data.answer, 'assistant');
+            } catch (e) {
+                hideTyping();
+                addMessage("Hi! I'm the EdOpt Assistant. How can I help you explore education options in New Hampshire?", 'assistant');
+            }
+        }
+
+        // Auto-resize textarea
+        const input = document.getElementById('input');
+        input.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
