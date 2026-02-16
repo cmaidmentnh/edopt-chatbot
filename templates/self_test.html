@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Education Options Self-Test — EdOpt</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f4f8;
+            color: #1a1a2e;
+            line-height: 1.6;
+        }
+        .header {
+            background: #1863DC;
+            color: white;
+            padding: 20px 24px;
+            text-align: center;
+        }
+        .header h1 { font-size: 22px; font-weight: 700; }
+        .header p { font-size: 14px; opacity: 0.9; margin-top: 4px; }
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 24px 16px 80px;
+        }
+        .intro {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #e2e8f0;
+        }
+        .intro h2 { font-size: 18px; color: #1863DC; margin-bottom: 8px; }
+        .intro p { font-size: 14px; color: #475569; margin-bottom: 8px; }
+        .intro strong { color: #1a1a2e; }
+
+        /* Progress bar */
+        .progress-bar {
+            background: #e2e8f0;
+            border-radius: 8px;
+            height: 8px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            background: #1863DC;
+            height: 100%;
+            border-radius: 8px;
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        .progress-text {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        /* Question cards */
+        .question-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+            display: none;
+        }
+        .question-card.active { display: block; }
+        .question-card h3 {
+            font-size: 16px;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+        .question-card .q-subtitle {
+            font-size: 13px;
+            color: #64748b;
+            margin-bottom: 16px;
+        }
+        .question-card .q-prompt {
+            font-size: 15px;
+            color: #334155;
+            margin-bottom: 16px;
+            font-style: italic;
+        }
+
+        /* Options */
+        .option {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.15s;
+            user-select: none;
+        }
+        .option:hover { border-color: #93c5fd; background: #f8fafc; }
+        .option.selected { border-color: #1863DC; background: #eff6ff; }
+        .option.disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            border-color: #e2e8f0;
+            background: #f8fafc;
+        }
+        .option input { display: none; }
+        .option .check {
+            width: 22px;
+            height: 22px;
+            border: 2px solid #cbd5e1;
+            border-radius: 6px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            margin-top: 1px;
+        }
+        .option.radio-mode .check { border-radius: 50%; }
+        .option.selected .check {
+            border-color: #1863DC;
+            background: #1863DC;
+        }
+        .option.selected .check::after {
+            content: '';
+            display: block;
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 2px;
+        }
+        .option.radio-mode.selected .check::after { border-radius: 50%; width: 8px; height: 8px; }
+        .option .label {
+            font-size: 14px;
+            color: #334155;
+            flex: 1;
+        }
+        .option.selected .label { color: #1e40af; font-weight: 500; }
+
+        /* Navigation */
+        .nav-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            justify-content: space-between;
+        }
+        .btn {
+            padding: 12px 28px;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #1863DC;
+            color: white;
+        }
+        .btn-primary:hover { background: #1453b8; }
+        .btn-primary:disabled { background: #94a3b8; cursor: not-allowed; }
+        .btn-secondary {
+            background: white;
+            color: #475569;
+            border: 1px solid #cbd5e1;
+        }
+        .btn-secondary:hover { background: #f1f5f9; }
+
+        /* Results */
+        .results { display: none; }
+        .results.active { display: block; }
+        .result-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        .result-card h3 {
+            font-size: 16px;
+            color: #1863DC;
+            margin-bottom: 12px;
+        }
+        .result-card p { font-size: 14px; color: #475569; margin-bottom: 8px; }
+        .result-card .big-label {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1863DC;
+            margin-bottom: 4px;
+        }
+        .result-card .sub-label {
+            font-size: 13px;
+            color: #64748b;
+        }
+        .index-positive { color: #16a34a; }
+        .index-neutral { color: #d97706; }
+        .index-negative { color: #dc2626; }
+        .next-step {
+            background: #f0f9ff;
+            border-left: 4px solid #1863DC;
+            padding: 16px;
+            border-radius: 0 8px 8px 0;
+            margin-top: 12px;
+        }
+        .next-step h4 { font-size: 14px; color: #1e40af; margin-bottom: 6px; }
+        .next-step p { font-size: 14px; color: #334155; margin: 0; }
+        .cta-section {
+            text-align: center;
+            padding: 24px;
+            background: #1863DC;
+            border-radius: 12px;
+            margin-top: 16px;
+        }
+        .cta-section h3 { color: white; font-size: 18px; margin-bottom: 8px; }
+        .cta-section p { color: rgba(255,255,255,0.9); font-size: 14px; margin-bottom: 16px; }
+        .cta-section .btn {
+            background: white;
+            color: #1863DC;
+            font-size: 16px;
+            padding: 14px 32px;
+        }
+        .cta-section .btn:hover { background: #f0f4f8; }
+
+        @media (max-width: 600px) {
+            .container { padding: 16px 12px 60px; }
+            .result-card .big-label { font-size: 24px; }
+            .header h1 { font-size: 19px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Education Options Self-Test</h1>
+        <p>Find your pathway in about 3 minutes</p>
+    </div>
+    <div class="container">
+
+        <!-- Intro -->
+        <div class="intro" id="intro">
+            <h2>What kind of education explorer are you?</h2>
+            <p>This quick self-test is built from the <strong>Choose to Learn 2024</strong> national survey of over 2,000 K-12 parents. It will help you understand:</p>
+            <p><strong>1.</strong> What type of education change you're looking for<br>
+               <strong>2.</strong> How ready you are to act<br>
+               <strong>3.</strong> What's holding you back<br>
+               <strong>4.</strong> Your personalized next steps</p>
+            <p style="margin-top:12px;"><strong>Instructions:</strong> Think about one child — the one you're most concerned about right now — and answer for that child.</p>
+            <div class="nav-row" style="justify-content:center;">
+                <button class="btn btn-primary" onclick="startTest()">Start the Self-Test</button>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div id="progress-section" style="display:none;">
+            <div class="progress-text" id="progress-text">Question 1 of 8</div>
+            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        </div>
+
+        <!-- Q1 -->
+        <div class="question-card" id="q1">
+            <h3>Question 1: Your Trigger</h3>
+            <div class="q-subtitle">What would make you act?</div>
+            <div class="q-prompt">"Which of the following would cause you to take action to improve your child's education?"</div>
+            <div class="q-subtitle">Select up to 2</div>
+            <div class="options" data-max="2" data-question="q1">
+                <div class="option" onclick="toggle(this)" data-value="mental_health" data-points="2">
+                    <div class="check"></div>
+                    <div class="label">Mental health concerns</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="academic" data-points="2">
+                    <div class="check"></div>
+                    <div class="label">Academic performance concerns</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="social_emotional" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Social and emotional development concerns</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="physical" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Concerns about physical wellbeing</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="values" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Concerns about development of values and belief systems</div>
+                </div>
+            </div>
+            <div class="nav-row">
+                <div></div>
+                <button class="btn btn-primary" id="next-q1" disabled onclick="nextQ(1)">Next</button>
+            </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="question-card" id="q2">
+            <h3>Question 2: Your Pathway</h3>
+            <div class="q-subtitle">What kind of change are you aiming for?</div>
+            <div class="q-prompt">"Which option best describes what you want to do next?"</div>
+            <div class="q-subtitle">Select one</div>
+            <div class="options" data-max="1" data-question="q2">
+                <div class="option radio-mode" onclick="toggle(this)" data-value="supplementer">
+                    <div class="check"></div>
+                    <div class="label"><strong>Supplement:</strong> Stay in current school and add supplemental activities (tutoring, enrichment, internships, service learning, etc.)</div>
+                </div>
+                <div class="option radio-mode" onclick="toggle(this)" data-value="switcher">
+                    <div class="check"></div>
+                    <div class="label"><strong>Switch:</strong> Move to a different primary school setting (private school, microschool, etc.), maybe with added supplements too</div>
+                </div>
+                <div class="option radio-mode" onclick="toggle(this)" data-value="customizer">
+                    <div class="check"></div>
+                    <div class="label"><strong>Customize:</strong> Opt out of the current setting and assemble a bespoke plan from multiple programs and experiences</div>
+                </div>
+            </div>
+            <div class="nav-row">
+                <button class="btn btn-secondary" onclick="prevQ(2)">Back</button>
+                <button class="btn btn-primary" id="next-q2" disabled onclick="nextQ(2)">Next</button>
+            </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="question-card" id="q3">
+            <h3>Question 3: What You Want From a New School</h3>
+            <div class="q-subtitle">What are you optimizing for?</div>
+            <div class="q-prompt">"Why are you interested in new or alternative schools?"</div>
+            <div class="q-subtitle">Select up to 3</div>
+            <div class="options" data-max="3" data-question="q3">
+                <div class="option" onclick="toggle(this)" data-value="academic_needs" data-theme="academics">
+                    <div class="check"></div>
+                    <div class="label">Academic needs will be better met</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="attention" data-theme="academics">
+                    <div class="check"></div>
+                    <div class="label">More attention (student-teacher ratios)</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="interests" data-theme="personalization">
+                    <div class="check"></div>
+                    <div class="label">Learning experiences that interest my child</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="new_styles" data-theme="personalization">
+                    <div class="check"></div>
+                    <div class="label">My child will benefit from new styles of learning</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="social_emotional_q3" data-theme="whole_child">
+                    <div class="check"></div>
+                    <div class="label">Social and emotional needs will be better met</div>
+                </div>
+            </div>
+            <div class="nav-row">
+                <button class="btn btn-secondary" onclick="prevQ(3)">Back</button>
+                <button class="btn btn-primary" id="next-q3" disabled onclick="nextQ(3)">Next</button>
+            </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="question-card" id="q4">
+            <h3>Question 4: What You Want From Customization</h3>
+            <div class="q-subtitle">Even if you're not sure you'll fully customize, this captures your "why"</div>
+            <div class="q-prompt">"Why are you interested in designing a customized education plan?"</div>
+            <div class="q-subtitle">Select up to 3</div>
+            <div class="options" data-max="3" data-question="q4">
+                <div class="option" onclick="toggle(this)" data-value="academic_needs_q4" data-theme="academics">
+                    <div class="check"></div>
+                    <div class="label">Academic needs will be better met</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="interests_q4" data-theme="personalization">
+                    <div class="check"></div>
+                    <div class="label">Learning experiences that interest my child</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="new_styles_q4" data-theme="personalization">
+                    <div class="check"></div>
+                    <div class="label">My child will benefit from new styles of learning</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="attention_q4" data-theme="academics">
+                    <div class="check"></div>
+                    <div class="label">More attention (individualized support)</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="flexibility" data-theme="personalization">
+                    <div class="check"></div>
+                    <div class="label">More flexibility (when and where learning occurs)</div>
+                </div>
+            </div>
+            <div class="nav-row">
+                <button class="btn btn-secondary" onclick="prevQ(4)">Back</button>
+                <button class="btn btn-primary" id="next-q4" disabled onclick="nextQ(4)">Next</button>
+            </div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="question-card" id="q5">
+            <h3>Question 5: What's Holding You Back</h3>
+            <div class="q-subtitle">Barriers to full customization</div>
+            <div class="q-prompt">"Why are you less interested in designing a customized educational plan compared to other options?"</div>
+            <div class="q-subtitle">Select up to 3</div>
+            <div class="options" data-max="3" data-question="q5">
+                <div class="option" onclick="toggle(this)" data-value="afford" data-points="2">
+                    <div class="check"></div>
+                    <div class="label">Cannot afford the associated expenses out-of-pocket</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="dont_know" data-points="2">
+                    <div class="check"></div>
+                    <div class="label">I do not know what it means to design a customized educational plan</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="school_culture" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">I want the benefits of school culture and extracurriculars</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="lack_quality" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Lack of quality options for our family</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="not_right_fit" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Is not the right fit for my child</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="socialization" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Would not allow for enough socialization opportunities</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="community" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">My family values having a school community</div>
+                </div>
+            </div>
+            <div class="nav-row">
+                <button class="btn btn-secondary" onclick="prevQ(5)">Back</button>
+                <button class="btn btn-primary" id="next-q5" disabled onclick="nextQ(5)">Next</button>
+            </div>
+        </div>
+
+        <!-- Q6 -->
+        <div class="question-card" id="q6">
+            <h3>Question 6: Where You Get Stuck</h3>
+            <div class="q-subtitle">Decision-making stages</div>
+            <div class="q-prompt">"Which stages of your decision-making process do you struggle with the most?"</div>
+            <div class="q-subtitle">Select up to 3</div>
+            <div class="options" data-max="3" data-question="q6">
+                <div class="option" onclick="toggle(this)" data-value="setting_goals" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Setting goals for my child's learning</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="awareness_types" data-points="2">
+                    <div class="check"></div>
+                    <div class="label">Awareness of program types</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="awareness_providers" data-points="2">
+                    <div class="check"></div>
+                    <div class="label">Awareness of specific providers</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="comparing" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Comparing and contrasting specific providers</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="visualizing" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Visualizing my child attending</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="visiting" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Visiting locations</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="enrolled_families" data-points="1">
+                    <div class="check"></div>
+                    <div class="label">Accessing currently enrolled families</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="affording_tuition" data-points="2">
+                    <div class="check"></div>
+                    <div class="label">Affording tuition</div>
+                </div>
+            </div>
+            <div class="nav-row">
+                <button class="btn btn-secondary" onclick="prevQ(6)">Back</button>
+                <button class="btn btn-primary" id="next-q6" disabled onclick="nextQ(6)">Next</button>
+            </div>
+        </div>
+
+        <!-- Q7 -->
+        <div class="question-card" id="q7">
+            <h3>Question 7: Affordability</h3>
+            <div class="q-subtitle">Real barrier, perceived barrier, or both?</div>
+            <div class="q-prompt">"What aspect of affordability poses the greatest challenge for your family?"</div>
+            <div class="q-subtitle">Select up to 2</div>
+            <div class="options" data-max="2" data-question="q7">
+                <div class="option" onclick="toggle(this)" data-value="tuition_expensive" data-points="2" data-afford="actual">
+                    <div class="check"></div>
+                    <div class="label">Tuition fees are too expensive</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="assume_expensive" data-points="2" data-afford="perceived">
+                    <div class="check"></div>
+                    <div class="label">I don't know the costs, but I assume it's too expensive</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="no_qualify_scholarship" data-points="1" data-afford="process">
+                    <div class="check"></div>
+                    <div class="label">Don't qualify for scholarships/grants</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="dont_know_scholarships" data-points="1" data-afford="process">
+                    <div class="check"></div>
+                    <div class="label">Don't know how to find scholarships/grants</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="time_off_work" data-points="1" data-afford="actual">
+                    <div class="check"></div>
+                    <div class="label">Can't afford to take time off work to find new school/program</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="use_scholarships" data-points="1" data-afford="process">
+                    <div class="check"></div>
+                    <div class="label">Don't know how to use scholarships/grants</div>
+                </div>
+            </div>
+            <div class="nav-row">
+                <button class="btn btn-secondary" onclick="prevQ(7)">Back</button>
+                <button class="btn btn-primary" id="next-q7" disabled onclick="nextQ(7)">Next</button>
+            </div>
+        </div>
+
+        <!-- Q8 -->
+        <div class="question-card" id="q8">
+            <h3>Question 8: What Support Would Help</h3>
+            <div class="q-subtitle">What would make the biggest difference right now?</div>
+            <div class="q-prompt">"Which would help you most right now?"</div>
+            <div class="q-subtitle">Select up to 2</div>
+            <div class="options" data-max="2" data-question="q8">
+                <div class="option" onclick="toggle(this)" data-value="mentor">
+                    <div class="check"></div>
+                    <div class="label">A mentor or coach (human support)</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="curated">
+                    <div class="check"></div>
+                    <div class="label">Curated recommendations from an online resource</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="exposure">
+                    <div class="check"></div>
+                    <div class="label">Exposure to families enrolled in the school of interest</div>
+                </div>
+            </div>
+            <div class="nav-row">
+                <button class="btn btn-secondary" onclick="prevQ(8)">Back</button>
+                <button class="btn btn-primary" id="next-q8" onclick="showResults()">See My Results</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="results" id="results">
+            <div class="result-card" id="result-persona">
+                <h3>Your Pathway</h3>
+                <div class="big-label" id="persona-label"></div>
+                <p id="persona-desc"></p>
+            </div>
+
+            <div class="result-card" id="result-direction">
+                <h3>What You're Optimizing For</h3>
+                <div class="big-label" id="direction-label"></div>
+                <p id="direction-desc"></p>
+            </div>
+
+            <div class="result-card" id="result-activation">
+                <h3>Your Activation Index</h3>
+                <div style="display:flex; gap:24px; margin-bottom:12px;">
+                    <div>
+                        <div class="sub-label">Readiness</div>
+                        <div style="font-size:22px; font-weight:700; color:#16a34a;" id="readiness-score"></div>
+                    </div>
+                    <div>
+                        <div class="sub-label">Friction</div>
+                        <div style="font-size:22px; font-weight:700; color:#dc2626;" id="friction-score"></div>
+                    </div>
+                    <div>
+                        <div class="sub-label">Activation</div>
+                        <div style="font-size:22px; font-weight:700;" id="activation-score"></div>
+                    </div>
+                </div>
+                <p id="activation-desc"></p>
+            </div>
+
+            <div class="result-card" id="result-bottleneck">
+                <h3>Your Bottleneck</h3>
+                <div class="big-label" id="bottleneck-label"></div>
+                <div class="next-step" id="bottleneck-advice"></div>
+            </div>
+
+            <div class="result-card" id="result-affordability">
+                <h3>Affordability Insight</h3>
+                <p id="afford-desc"></p>
+                <div class="next-step" id="afford-advice"></div>
+            </div>
+
+            <div class="cta-section">
+                <h3>Ready to Explore Your Options?</h3>
+                <p>EdOpt can help you find schools, programs, and financial resources in New Hampshire tailored to your child's needs.</p>
+                <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+                    <a href="/beta" class="btn" style="text-decoration:none;">Chat with EdOpt Assistant</a>
+                    <a href="https://edopt.org" target="_blank" class="btn" style="text-decoration:none; background:#eff6ff; color:#1863DC;">Visit EdOpt.org</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // State
+        const answers = {};
+        let currentQ = 0;
+        const totalQ = 8;
+
+        function startTest() {
+            document.getElementById('intro').style.display = 'none';
+            document.getElementById('progress-section').style.display = 'block';
+            showQuestion(1);
+        }
+
+        function showQuestion(n) {
+            currentQ = n;
+            for (let i = 1; i <= totalQ; i++) {
+                document.getElementById('q' + i).classList.remove('active');
+            }
+            document.getElementById('q' + n).classList.add('active');
+            document.getElementById('progress-text').textContent = 'Question ' + n + ' of ' + totalQ;
+            document.getElementById('progress-fill').style.width = ((n / totalQ) * 100) + '%';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function toggle(el) {
+            if (el.classList.contains('disabled') && !el.classList.contains('selected')) return;
+
+            const container = el.closest('.options');
+            const max = parseInt(container.dataset.max);
+            const qKey = container.dataset.question;
+
+            if (el.classList.contains('selected')) {
+                el.classList.remove('selected');
+            } else {
+                const selected = container.querySelectorAll('.option.selected');
+                if (selected.length >= max) {
+                    if (max === 1) {
+                        // Radio behavior
+                        selected.forEach(s => s.classList.remove('selected'));
+                    } else {
+                        return;
+                    }
+                }
+                el.classList.add('selected');
+            }
+
+            // Update disabled state
+            const selectedCount = container.querySelectorAll('.option.selected').length;
+            container.querySelectorAll('.option').forEach(opt => {
+                if (selectedCount >= max && !opt.classList.contains('selected')) {
+                    opt.classList.add('disabled');
+                } else {
+                    opt.classList.remove('disabled');
+                }
+            });
+
+            // Store answers
+            const selectedOpts = container.querySelectorAll('.option.selected');
+            answers[qKey] = Array.from(selectedOpts).map(o => ({
+                value: o.dataset.value,
+                points: parseInt(o.dataset.points || '0'),
+                theme: o.dataset.theme || null,
+                afford: o.dataset.afford || null,
+            }));
+
+            // Enable/disable next button
+            const nextBtn = document.getElementById('next-' + qKey);
+            if (nextBtn) nextBtn.disabled = selectedCount === 0;
+        }
+
+        function nextQ(n) {
+            if (n < totalQ) showQuestion(n + 1);
+        }
+
+        function prevQ(n) {
+            if (n > 1) showQuestion(n - 1);
+        }
+
+        function showResults() {
+            // Hide question UI
+            for (let i = 1; i <= totalQ; i++) {
+                document.getElementById('q' + i).classList.remove('active');
+            }
+            document.getElementById('progress-section').style.display = 'none';
+
+            // Calculate scores
+            const readiness = (answers.q1 || []).reduce((s, a) => s + a.points, 0);
+
+            // Persona
+            const persona = (answers.q2 && answers.q2[0]) ? answers.q2[0].value : 'supplementer';
+            const personaNames = {
+                supplementer: 'School Supplementer',
+                switcher: 'School Switcher',
+                customizer: 'Customizer'
+            };
+            const personaDescs = {
+                supplementer: 'You want to stay in your current school but add enrichment, tutoring, or other supplemental activities. You\'re looking to enhance what your child already has. About 64% of open-minded parents share this pathway.',
+                switcher: 'You\'re looking to move your child to a different primary school setting — a private school, microschool, or other alternative. About 10% of open-minded parents are in this same position.',
+                customizer: 'You want to step outside the traditional school model entirely and build a bespoke education plan from multiple programs and experiences. About 26% of open-minded parents share this ambitious vision.'
+            };
+
+            document.getElementById('persona-label').textContent = personaNames[persona];
+            document.getElementById('persona-desc').textContent = personaDescs[persona];
+
+            // Direction (from Q3 + Q4 themes)
+            const themes = { academics: 0, personalization: 0, whole_child: 0 };
+            (answers.q3 || []).concat(answers.q4 || []).forEach(a => {
+                if (a.theme) themes[a.theme]++;
+            });
+            let topTheme = 'personalization';
+            let topCount = 0;
+            for (const [key, count] of Object.entries(themes)) {
+                if (count > topCount) { topTheme = key; topCount = count; }
+            }
+            const dirNames = {
+                academics: 'Support & Rigor',
+                personalization: 'Personalization',
+                whole_child: 'Whole-Child Stabilization'
+            };
+            const dirDescs = {
+                academics: 'You\'re primarily focused on academic outcomes and individualized attention. You want better academics and more support for your child. Look for programs with strong academic track records and low student-teacher ratios.',
+                personalization: 'You value flexibility, diverse learning experiences, and matching education to your child\'s unique interests and learning style. Look for programs that offer personalized learning plans and varied instructional approaches.',
+                whole_child: 'Your child\'s social and emotional wellbeing is your top priority. You\'re looking for environments that nurture the whole child, not just academics. Look for programs with strong social-emotional learning and community focus.'
+            };
+
+            document.getElementById('direction-label').textContent = dirNames[topTheme];
+            document.getElementById('direction-desc').textContent = dirDescs[topTheme];
+
+            // Friction (Q5 + Q6 + Q7)
+            const friction = (answers.q5 || []).reduce((s, a) => s + a.points, 0)
+                           + (answers.q6 || []).reduce((s, a) => s + a.points, 0)
+                           + (answers.q7 || []).reduce((s, a) => s + a.points, 0);
+
+            const activation = readiness - friction;
+
+            document.getElementById('readiness-score').textContent = '+' + readiness;
+            document.getElementById('friction-score').textContent = '-' + friction;
+
+            const actEl = document.getElementById('activation-score');
+            actEl.textContent = (activation >= 0 ? '+' : '') + activation;
+            if (activation >= 2) {
+                actEl.className = 'index-positive';
+                document.getElementById('activation-desc').textContent = 'You\'re primed to move. Your child\'s needs are clear and your blockers are manageable. Take action, but don\'t rush — thoughtful decisions lead to better outcomes.';
+            } else if (activation >= -1) {
+                actEl.className = 'index-neutral';
+                document.getElementById('activation-desc').textContent = 'You\'re in the "stuck but motivated" zone. You know something needs to change, but awareness gaps, fit uncertainty, or affordability confusion is likely holding you back. Navigation support can help you break through.';
+            } else {
+                actEl.className = 'index-negative';
+                document.getElementById('activation-desc').textContent = 'The blockers are dominating right now. Before searching for specific programs, you likely need navigation support to clarify your options, understand costs, and build confidence in the decision.';
+            }
+
+            // Bottleneck (top Q6 selection)
+            const q6Answers = answers.q6 || [];
+            let bottleneck = 'awareness';
+            if (q6Answers.length > 0) {
+                const top = q6Answers[0].value;
+                if (['awareness_types', 'awareness_providers'].includes(top)) bottleneck = 'awareness';
+                else if (['comparing', 'visualizing', 'visiting', 'enrolled_families'].includes(top)) bottleneck = 'fit';
+                else if (top === 'affording_tuition') bottleneck = 'affordability';
+                else if (top === 'setting_goals') bottleneck = 'goals';
+            }
+
+            const bottleneckNames = {
+                awareness: 'Awareness',
+                fit: 'Finding the Right Fit',
+                affordability: 'Affordability',
+                goals: 'Goal Setting'
+            };
+            document.getElementById('bottleneck-label').textContent = bottleneckNames[bottleneck];
+
+            const adviceEl = document.getElementById('bottleneck-advice');
+            if (bottleneck === 'awareness') {
+                adviceEl.innerHTML = '<h4>Your Next Step</h4><p>This is the most common early-stage barrier. Start by learning about the different program types available in NH: traditional public, charter, private, microschool, hybrid homeschool, and enrichment programs. Then narrow down to specific providers near you. EdOpt can help you explore all of these.</p>';
+            } else if (bottleneck === 'fit') {
+                adviceEl.innerHTML = '<h4>Your Next Step</h4><p>Research shows parents care more about "fit" than logistics like distance or scheduling. Demand real evidence of fit: student support structures, personalization approaches, examples of student work and engagement. Don\'t settle for marketing materials alone.</p>';
+            } else if (bottleneck === 'affordability') {
+                adviceEl.innerHTML = '<h4>Your Next Step</h4><p>Half the affordability fight is actual cost, and half is cost confusion. NH\'s Education Freedom Account (EFA) program provides approximately $5,200 per student for approved education expenses. Many families qualify but don\'t know about it. Start by checking your EFA eligibility.</p>';
+            } else {
+                adviceEl.innerHTML = '<h4>Your Next Step</h4><p>Before exploring specific programs, take time to clarify what success looks like for your child. What are your academic goals? Social goals? What learning environment does your child thrive in? Having clear goals makes every other step easier.</p>';
+            }
+
+            // Affordability insight
+            const q7Answers = answers.q7 || [];
+            const affordTypes = q7Answers.map(a => a.afford).filter(Boolean);
+
+            let affordText = '';
+            let affordAdvice = '';
+
+            if (affordTypes.includes('perceived')) {
+                affordText = 'Your biggest affordability barrier may be perceived rather than real. You\'re not sure what things cost, but you\'re assuming it\'s out of reach. Nearly half of parents in the national survey felt the same way.';
+                affordAdvice = '<h4>Your Next Step</h4><p>Your first move is price transparency. Many NH education options cost less than you think, and the EFA program can cover a significant portion. Before ruling anything out, get actual numbers. EdOpt can help you understand costs for specific programs.</p>';
+            } else if (affordTypes.includes('actual')) {
+                affordText = 'You\'re facing a real cost barrier — tuition fees are genuinely straining your family\'s budget. You\'re not alone; this is the #1 barrier nationally.';
+                affordAdvice = '<h4>Your Next Step</h4><p>NH\'s Education Freedom Account provides approximately $5,200 per student toward approved education expenses. Many private schools also offer their own financial aid. Ask EdOpt about EFA eligibility and scholarship options for the programs you\'re considering.</p>';
+            } else if (affordTypes.includes('process')) {
+                affordText = 'Your affordability barrier is more about process than price. You need help navigating scholarships, grants, and financial aid programs.';
+                affordAdvice = '<h4>Your Next Step</h4><p>You need navigation help more than another brochure. The EFA application process, scholarship searches, and financial aid forms can be confusing. EdOpt can walk you through the process step by step.</p>';
+            } else {
+                affordText = 'Affordability may not be your primary barrier, which puts you in a strong position to focus on finding the right fit for your child.';
+                affordAdvice = '<h4>Your Next Step</h4><p>Focus your energy on the program search itself. With cost as a lesser concern, you can prioritize finding the best educational match for your child\'s needs and learning style.</p>';
+            }
+
+            document.getElementById('afford-desc').textContent = affordText;
+            document.getElementById('afford-advice').innerHTML = affordAdvice;
+
+            // Show results
+            document.getElementById('results').classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>

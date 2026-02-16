@@ -165,5 +165,7 @@ async def get_greeting() -> str:
         "- **Find schools and programs** near you\n"
         "- **Learn about Education Freedom Accounts** (EFAs)\n"
         "- **Understand NH education laws** and requirements\n\n"
+        "You can also take our [Education Options Self-Test](/self-test) "
+        "to find your pathway and get personalized recommendations.\n\n"
         "What can I help you with today?"
     )

@@ -122,6 +122,12 @@ async def beta():
         return HTMLResponse(content=f.read())
 
 
+@app.get("/self-test", response_class=HTMLResponse)
+async def self_test():
+    with open("templates/self_test.html") as f:
+        return HTMLResponse(content=f.read())
+
+
 @app.get("/conversations", response_class=HTMLResponse)
 async def conversations_page():
     with open("templates/conversations.html") as f:
