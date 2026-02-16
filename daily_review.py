@@ -12,6 +12,9 @@ import os
 import sys
 from datetime import datetime, timezone, timedelta
 
+from dotenv import load_dotenv
+load_dotenv()
+
 import anthropic
 import boto3
 from botocore.exceptions import ClientError
