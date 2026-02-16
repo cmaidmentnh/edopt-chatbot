@@ -388,9 +388,9 @@
 
         <!-- Q5 -->
         <div class="question-card" id="q5">
-            <h3>Question 5: What's Holding You Back</h3>
-            <div class="q-subtitle">Barriers to full customization</div>
-            <div class="q-prompt">"Why are you less interested in designing a customized educational plan compared to other options?"</div>
+            <h3 id="q5-title">Question 5: What's Holding You Back</h3>
+            <div class="q-subtitle" id="q5-subtitle">Barriers to full customization</div>
+            <div class="q-prompt" id="q5-prompt">"Why are you less interested in designing a customized educational plan compared to other options?"</div>
             <div class="q-subtitle">Select up to 3</div>
             <div class="options" data-max="3" data-question="q5">
                 <div class="option" onclick="toggle(this)" data-value="afford" data-points="2">
@@ -665,6 +665,19 @@
         }
 
         function nextQ(n) {
+            // Adapt Q5 framing based on Q2 persona
+            if (n === 4) {
+                const persona = (answers.q2 && answers.q2[0]) ? answers.q2[0].value : '';
+                if (persona === 'customizer') {
+                    document.getElementById('q5-title').textContent = 'Question 5: Your Concerns';
+                    document.getElementById('q5-subtitle').textContent = 'Even if customization is your goal, what worries you?';
+                    document.getElementById('q5-prompt').textContent = '"What concerns do you have about designing a customized educational plan?"';
+                } else {
+                    document.getElementById('q5-title').textContent = "Question 5: What's Holding You Back";
+                    document.getElementById('q5-subtitle').textContent = 'Barriers to full customization';
+                    document.getElementById('q5-prompt').textContent = '"Why are you less interested in designing a customized educational plan compared to other options?"';
+                }
+            }
             if (n < totalQ) showQuestion(n + 1);
         }
 
