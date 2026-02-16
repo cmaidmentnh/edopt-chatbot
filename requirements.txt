@@ -1,0 +1,16 @@
+fastapi==0.115.2
+uvicorn[standard]==0.32.0
+python-dotenv==1.0.1
+anthropic>=0.42.0
+sentence-transformers>=2.7.0
+numpy>=1.24.0
+geopy==2.4.1
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.25.1
+slowapi==0.1.9
+beautifulsoup4==4.12.3
+pymssql>=2.2.8
+requests>=2.31.0
+cloudscraper>=1.2.71
+SQLAlchemy>=2.0.0
+torch>=2.0.0

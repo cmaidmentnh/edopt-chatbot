@@ -1,0 +1,15 @@
+[Unit]
+Description=EdOpt Chatbot API
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/edopt-chatbot
+Environment=PATH=/opt/edopt-chatbot/venv/bin:/usr/local/bin:/usr/bin
+ExecStart=/opt/edopt-chatbot/venv/bin/uvicorn app:app --host 127.0.0.1 --port 5012 --workers 2
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
