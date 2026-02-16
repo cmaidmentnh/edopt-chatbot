@@ -320,9 +320,9 @@
 
         <!-- Q3 -->
         <div class="question-card" id="q3">
-            <h3>Question 3: What You Want From a New School</h3>
-            <div class="q-subtitle">What are you optimizing for?</div>
-            <div class="q-prompt">"Why are you interested in new or alternative schools?"</div>
+            <h3 id="q3-title">Question 3: What You're Looking For</h3>
+            <div class="q-subtitle" id="q3-subtitle">What matters most for your child?</div>
+            <div class="q-prompt" id="q3-prompt">"Why are you interested in new alternative schools?"</div>
             <div class="q-subtitle">Select up to 3</div>
             <div class="options" data-max="3" data-question="q3">
                 <div class="option" onclick="toggle(this)" data-value="academic_needs" data-theme="academics">
@@ -354,9 +354,9 @@
 
         <!-- Q4 -->
         <div class="question-card" id="q4">
-            <h3>Question 4: What You Want From Customization</h3>
-            <div class="q-subtitle">Even if you're not sure you'll fully customize, this captures your "why"</div>
-            <div class="q-prompt">"Why are you interested in designing a customized education plan?"</div>
+            <h3 id="q4-title">Question 4: Going Further</h3>
+            <div class="q-subtitle" id="q4-subtitle">Even if you're not sure you'll fully customize, this captures your "why"</div>
+            <div class="q-prompt" id="q4-prompt">"Why are you interested in opportunities provided by designing a customized education plan?"</div>
             <div class="q-subtitle">Select up to 3</div>
             <div class="options" data-max="3" data-question="q4">
                 <div class="option" onclick="toggle(this)" data-value="academic_needs_q4" data-theme="academics">
@@ -504,6 +504,10 @@
                 <div class="option" onclick="toggle(this)" data-value="use_scholarships" data-points="1" data-afford="process">
                     <div class="check"></div>
                     <div class="label">Don't know how to use scholarships/grants</div>
+                </div>
+                <div class="option" onclick="toggle(this)" data-value="not_a_concern" data-points="0" data-afford="none">
+                    <div class="check"></div>
+                    <div class="label">Cost is not a major concern for my family</div>
                 </div>
             </div>
             <div class="nav-row">
@@ -665,9 +669,44 @@
         }
 
         function nextQ(n) {
+            const persona = (answers.q2 && answers.q2[0]) ? answers.q2[0].value : '';
+
+            // Adapt Q3 framing based on Q2 persona
+            if (n === 2) {
+                if (persona === 'supplementer') {
+                    document.getElementById('q3-title').textContent = 'Question 3: What You\'re Looking For';
+                    document.getElementById('q3-subtitle').textContent = 'What matters most in supplemental programs?';
+                    document.getElementById('q3-prompt').textContent = '"What would you want from supplemental programs or enrichment activities for your child?"';
+                } else if (persona === 'customizer') {
+                    document.getElementById('q3-title').textContent = 'Question 3: What You\'re Looking For';
+                    document.getElementById('q3-subtitle').textContent = 'What matters most in your child\'s education?';
+                    document.getElementById('q3-prompt').textContent = '"What do you want from a different approach to your child\'s education?"';
+                } else {
+                    document.getElementById('q3-title').textContent = 'Question 3: What You\'re Looking For';
+                    document.getElementById('q3-subtitle').textContent = 'What matters most in a new school?';
+                    document.getElementById('q3-prompt').textContent = '"Why are you interested in new alternative schools?"';
+                }
+            }
+
+            // Adapt Q4 framing based on Q2 persona
+            if (n === 3) {
+                if (persona === 'supplementer') {
+                    document.getElementById('q4-title').textContent = 'Question 4: If You Could Go Further';
+                    document.getElementById('q4-subtitle').textContent = 'If you could design your child\'s entire learning experience, what would matter most?';
+                    document.getElementById('q4-prompt').textContent = '"What appeals to you about the idea of a fully customized education plan?"';
+                } else if (persona === 'customizer') {
+                    document.getElementById('q4-title').textContent = 'Question 4: Your Customization Goals';
+                    document.getElementById('q4-subtitle').textContent = 'What\'s driving your desire to build a custom plan?';
+                    document.getElementById('q4-prompt').textContent = '"Why are you interested in opportunities provided by designing a customized education plan?"';
+                } else {
+                    document.getElementById('q4-title').textContent = 'Question 4: If You Could Go Further';
+                    document.getElementById('q4-subtitle').textContent = 'Beyond switching schools, what appeals to you about full customization?';
+                    document.getElementById('q4-prompt').textContent = '"Why are you interested in opportunities provided by designing a customized education plan?"';
+                }
+            }
+
             // Adapt Q5 framing based on Q2 persona
             if (n === 4) {
-                const persona = (answers.q2 && answers.q2[0]) ? answers.q2[0].value : '';
                 if (persona === 'customizer') {
                     document.getElementById('q5-title').textContent = 'Question 5: Your Concerns';
                     document.getElementById('q5-subtitle').textContent = 'Even if customization is your goal, what worries you?';
@@ -678,6 +717,7 @@
                     document.getElementById('q5-prompt').textContent = '"Why are you less interested in designing a customized educational plan compared to other options?"';
                 }
             }
+
             if (n < totalQ) showQuestion(n + 1);
         }
 
