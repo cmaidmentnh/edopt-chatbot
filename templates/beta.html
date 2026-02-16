@@ -276,7 +276,8 @@
                 div.textContent = content;
             }
             container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            // Scroll to top of new message, not bottom
+            div.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         function showTyping() {

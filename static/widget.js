@@ -222,7 +222,7 @@
       div.textContent = content;
     }
     messages.appendChild(div);
-    messages.scrollTop = messages.scrollHeight;
+    div.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function showTyping() {
