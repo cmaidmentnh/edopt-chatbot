@@ -799,6 +799,20 @@
             document.getElementById('afford-desc').textContent = affordText;
             document.getElementById('afford-advice').innerHTML = affordAdvice;
 
+            // Build CTA link with results as query params
+            const triggers = (answers.q1 || []).map(a => a.value.replace('_', ' ')).join(', ');
+            const q8Prefs = (answers.q8 || []).map(a => a.value).join(',');
+            const params = new URLSearchParams({
+                persona: persona,
+                direction: topTheme,
+                activation: activation.toString(),
+                bottleneck: bottleneck,
+                afford: affordTypes[0] || 'none',
+                triggers: triggers,
+                support: q8Prefs,
+            });
+            document.querySelector('.cta-section a[href^="/beta"]').href = '/beta?' + params.toString();
+
             // Show results
             document.getElementById('results').classList.add('active');
             window.scrollTo({ top: 0, behavior: 'smooth' });

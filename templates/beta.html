@@ -341,7 +341,49 @@
             }
         }
 
+        function buildSelfTestContext() {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.has('persona')) return null;
+
+            const personaNames = { supplementer: 'School Supplementer', switcher: 'School Switcher', customizer: 'Customizer' };
+            const dirNames = { academics: 'support and academic rigor', personalization: 'personalization and flexibility', whole_child: 'whole-child social-emotional wellbeing' };
+            const bottleneckNames = { awareness: 'awareness of options', fit: 'finding the right fit', affordability: 'affordability', goals: 'setting clear goals' };
+
+            const persona = params.get('persona');
+            const direction = params.get('direction');
+            const activation = parseInt(params.get('activation') || '0');
+            const bottleneck = params.get('bottleneck');
+            const afford = params.get('afford');
+            const triggers = params.get('triggers') || '';
+
+            let msg = 'I just took the self-test. Here are my results: ';
+            msg += 'I\'m a ' + (personaNames[persona] || persona) + '. ';
+            msg += 'I\'m optimizing for ' + (dirNames[direction] || direction) + '. ';
+            msg += 'My main concerns are ' + triggers + '. ';
+            msg += 'My biggest bottleneck is ' + (bottleneckNames[bottleneck] || bottleneck) + '. ';
+
+            if (activation >= 2) msg += 'I\'m ready to take action. ';
+            else if (activation >= -1) msg += 'I\'m motivated but feeling stuck. ';
+            else msg += 'I\'m feeling blocked by barriers right now. ';
+
+            if (afford === 'perceived') msg += 'I\'m not sure what things cost but assume I can\'t afford them. ';
+            else if (afford === 'actual') msg += 'Tuition costs are a real barrier for my family. ';
+            else if (afford === 'process') msg += 'I need help navigating scholarships and financial aid. ';
+
+            msg += 'What should I do next?';
+
+            // Clean the URL so refreshing doesn't re-send
+            window.history.replaceState({}, '', '/beta');
+
+            return msg;
+        }
+
         async function init() {
+            const selfTestMsg = buildSelfTestContext();
+
+            // Hide suggestions immediately if self-test results are coming
+            if (selfTestMsg) hideSuggestions();
+
             showTyping();
             try {
                 const resp = await fetch(API_BASE + '/greet');
@@ -352,6 +394,12 @@
             } catch (e) {
                 hideTyping();
                 addMessage("Hi! I'm the EdOpt Assistant. How can I help you explore education options in New Hampshire?", 'assistant');
+            }
+
+            if (selfTestMsg) {
+                // Auto-send the self-test results as the first user message
+                document.getElementById('input').value = selfTestMsg;
+                await sendMessage();
             }
         }
 
