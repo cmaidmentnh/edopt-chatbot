@@ -12,12 +12,12 @@ WP_API_BASE = os.getenv("WP_API_BASE", "https://edopt.org/wp-json/wp/v2")
 WP_USER = os.getenv("WP_USER", "")
 WP_APP_PASSWORD = os.getenv("WP_APP_PASSWORD", "")
 
-# GenCourt SQL Server
-GENCOURT_HOST = os.getenv("GENCOURT_HOST", "66.211.150.69")
+# GenCourt SQL Server (credentials must be in .env)
+GENCOURT_HOST = os.getenv("GENCOURT_HOST", "")
 GENCOURT_PORT = int(os.getenv("GENCOURT_PORT", "1433"))
-GENCOURT_USER = os.getenv("GENCOURT_USER", "publicuser")
-GENCOURT_PASS = os.getenv("GENCOURT_PASS", "PublicAccess")
-GENCOURT_DB = os.getenv("GENCOURT_DB", "NHLegislatureDB")
+GENCOURT_USER = os.getenv("GENCOURT_USER", "")
+GENCOURT_PASS = os.getenv("GENCOURT_PASS", "")
+GENCOURT_DB = os.getenv("GENCOURT_DB", "")
 
 # SQLite database
 DATABASE_PATH = os.getenv("DATABASE_PATH", "edopt_chatbot.db")
