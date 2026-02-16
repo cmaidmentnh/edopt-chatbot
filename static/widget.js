@@ -7,12 +7,16 @@
 (function () {
   "use strict";
 
-  // Configuration
-  const API_BASE =
-    document.currentScript?.getAttribute("data-api") ||
-    (window.location.hostname === "localhost"
-      ? "http://localhost:5012"
-      : "https://chatbot.edopt.org");
+  // Configuration — detect API base from script src or page origin
+  const _script =
+    document.currentScript ||
+    document.querySelector('script[src*="widget.js"]');
+  const _dataApi = _script?.getAttribute("data-api");
+  const API_BASE = _dataApi
+    ? _dataApi
+    : _script?.src
+      ? new URL(_script.src).origin
+      : window.location.origin;
   const STORAGE_KEY = "edopt_chat_session_id";
   const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
