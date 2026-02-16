@@ -15,7 +15,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from config import CORS_ORIGINS, PORT, RATE_LIMIT
-from models import init_db
+from models import init_db, SessionLocal, ChatSession, ChatMessage
 from chat import process_chat, get_greeting
 from embeddings import load_embeddings_into_memory
 
@@ -120,6 +120,55 @@ async def demo():
 async def beta():
     with open("templates/beta.html") as f:
         return HTMLResponse(content=f.read())
+
+
+@app.get("/conversations", response_class=HTMLResponse)
+async def conversations_page():
+    with open("templates/conversations.html") as f:
+        return HTMLResponse(content=f.read())
+
+
+@app.get("/api/conversations")
+async def api_conversations():
+    db = SessionLocal()
+    try:
+        sessions = (
+            db.query(ChatSession)
+            .order_by(ChatSession.last_active.desc())
+            .limit(100)
+            .all()
+        )
+        total_messages = db.query(ChatMessage).count()
+        result = []
+        for s in sessions:
+            messages = (
+                db.query(ChatMessage)
+                .filter_by(session_id=s.id)
+                .order_by(ChatMessage.created_at.asc())
+                .all()
+            )
+            result.append({
+                "id": s.id,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "last_active": s.last_active.isoformat() if s.last_active else None,
+                "ip_address": s.ip_address,
+                "messages": [
+                    {
+                        "role": m.role,
+                        "content": m.content,
+                        "created_at": m.created_at.isoformat() if m.created_at else None,
+                        "tool_calls": m.tool_calls_json,
+                    }
+                    for m in messages
+                ],
+            })
+        return {
+            "total_sessions": len(sessions),
+            "total_messages": total_messages,
+            "sessions": result,
+        }
+    finally:
+        db.close()
 
 
 if __name__ == "__main__":
