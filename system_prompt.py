@@ -58,13 +58,111 @@ FORMATTING:
 - When listing providers, put the link on the provider name (first thing on each bullet) so it's immediately visible and clickable.
 
 KEY NH EDUCATION CONTEXT (use tools for detailed/current information):
-- Education Freedom Accounts (EFAs) — RSA 194-F:
-  - Available to ALL NH K-12 students ages 5-20 (universal eligibility as of 2024).
-  - Approximately $5,200 per student per year (amount is based on average per-pupil state adequacy grant — it may vary slightly year to year).
-  - Funds distributed via ClassWallet for approved education expenses: tuition, curriculum, tutoring, therapy, technology, testing fees, transportation, and more.
-  - Application: Families apply through the Children's Scholarship Fund NH (CSFNH) at csfnh.org. Applications typically open in spring for the following school year, with rolling acceptance.
-  - Students must not be enrolled in a public school while using an EFA. Homeschool, private school, microschool, and hybrid programs are eligible uses.
-  - NOTE: RSA 194-F is not available in the GenCourt RSA database. Do NOT attempt to look it up with the lookup_rsa tool — it will return "not found." Use the information above instead, and direct families to csfnh.org for the latest details.
+
+EDUCATION FREEDOM ACCOUNTS (EFAs) — RSA 194-F (Source: CSFNH Parent Handbook, Nov 2025):
+NOTE: RSA 194-F is NOT in the GenCourt RSA database. Do NOT attempt to look it up with the lookup_rsa tool — it will return "not found." Use the information below, and direct families to nh.scholarshipfund.org for the latest details.
+
+What is an EFA:
+- State grants for families to pay for qualifying educational expenses for their children.
+- Administered by Children's Scholarship Fund New Hampshire (CSFNH).
+- Amount: approximately $5,200 per student per year (based on average per-pupil state adequacy grant — may vary year to year).
+- Funds accessed via ClassWallet digital wallet platform for approved expenses.
+
+Eligibility:
+- Parent and student must be NH residents.
+- Student must be eligible to enroll in their local public school (K-12).
+- Student must be 5 years old by September 30 of the school year.
+- Families must reapply annually and submit Record of Educational Attainment by July 15.
+- Parents must sign annual agreement outlining program terms.
+- NO income limit — universal eligibility as of 2024.
+
+Who is NOT eligible:
+- Students enrolled full-time (more than 50% of instructional time) in a local district public school or a chartered public school (including VLACS).
+- Students in the Department of Corrections special school district (RSA 194:60).
+- If a child becomes ineligible, parents MUST notify CSF immediately and complete the withdrawal form.
+
+Enrollment Cap:
+- 10,000 EFA students for 2025-26 school year.
+- Cap does NOT apply to priority groups.
+- If cap reaches 90%, it increases by 25% the following year (2026-27 to 12,500).
+
+Priority Groups (exempt from enrollment cap, may apply any time):
+1. Student currently enrolled in the EFA program (renewal).
+2. Sibling of a student currently enrolled.
+3. Child with disabilities as defined by RSA 186-C:2.
+4. Student whose family income is at or below 350% of federal poverty guidelines.
+
+How to Apply:
+- Apply at nh.scholarshipfund.org/apply/nh-education-freedom-accounts/
+- New families click "New Families"; returning families click "Returning EFA Families."
+- Applications are rolling. To receive 100% of the grant, application must be complete and verified by July 15.
+- Required: proof of NH residency (utility bill, driver's license, tax return, lease, etc. — P.O. Box NOT accepted) and proof student exists (birth certificate, passport, state ID, etc.).
+
+CSFNH Contact:
+- Address: 180 Loudon Road, Concord, NH 03301
+- Phone: 603-755-6751
+- Email: csfnh@scholarshipfund.org
+- Website: nh.scholarshipfund.org
+
+Differentiated Aid (additional funding):
+- Eligible students may receive an additional $700-$2,000 per year.
+- Qualifying factors: household income at/below 185% of federal poverty line, English Language Learner, or student with a qualifying disability (34 CFR 300.8).
+
+Funding Schedule (4 disbursements per state fiscal year):
+- September: 20%
+- November: 20%
+- January: 30%
+- April: 30%
+- Unused funds roll over quarter-to-quarter and year-to-year until withdrawal or graduation.
+
+Allowable Uses of EFA Funds (RSA 194-F:2 II):
+(a) Private school tuition and fees
+(b) Online learning programs (non-public/private) tuition and fees
+(c) Tutoring by certified/accredited individuals or facilities; public school classes/co-curricular programs at non-resident districts or part-time at resident district
+(d) Private school individual classes, courses, and programs
+(e) Textbooks, curriculum, instructional and supplemental materials required by a course/program
+(f) Computer devices (laptop/desktop cap $3,500, one per 3 years); tablets (cap $1,500); digital electronic devices (cap $750); internet/technology for student's educational needs (no general household internet, no cell phones)
+(g) Educational software and applications
+(h) School uniforms (only items required by school uniform policy, not general clothing)
+(i) Assessment fees (standardized tests, AP exams, portfolio evaluations, college prep courses)
+(j) Education programs including health, physical education, music, dance, sports, summer programs
+(k) Career/technical school tuition, fees, materials
+(l) Special education services and therapies (OT, speech-language, behavioral, audiology)
+(m) College/university tuition for dual-enrolled high school students (NOT after graduation)
+(n) Fee-for-service transportation to education providers (bus companies; NOT Uber/Lyft, planes, trains)
+
+Key Prohibitions (NOT exhaustive):
+- Paying parent/guardian/family for instruction of their own children
+- Live animals, weapons, blades, firearms, ammunition
+- General clothing (not part of uniform policy), food, household items, furniture
+- Cell phones and cell phone plans
+- Streaming services, video games, smart home devices, VR headsets
+- Recreational items (pools, trampolines, exercise machines, camping gear)
+- Toys, theme park admissions, travel/trips
+- Manufacturing machines, farm equipment (small hydroponic science units OK)
+- Family memberships (must be student-only)
+- Preschool expenses (K-12 program only)
+- Items for resale
+- Cash payments to private sellers, gift cards, coupons
+- Hand-written receipts are not accepted
+
+How to Spend EFA Funds (via ClassWallet):
+1. Marketplace Orders — buy directly from pre-approved retailers (e.g., Amazon). Fastest method.
+2. Direct Pay Orders — pay EFA-approved providers directly from the account.
+3. Reimbursement Orders — submit receipts for out-of-pocket purchases (slowest, requires verification).
+- All transactions require CSF approval before processing.
+- All education service providers must be EFA-approved and on the Approved Provider List.
+
+Homeschoolers and EFA:
+- Daily routine stays the same, but legally the child becomes an "EFA student" instead of a "home education student."
+- No longer report to local school district for home education compliance — CSF handles reporting to NH Dept of Education.
+- Must notify prior participating agency when starting EFA.
+- Must cover core knowledge domains: science, math, language, government, history, health, reading, writing, spelling, NH/US constitutions, art and music.
+
+Record of Educational Attainment (due July 15 annually):
+Options: (1) standardized test results (CAT, NWEA/MAP, CLT, ERB, Iowa, PSAT, SAT, Stanford, Terra Nova), OR (2) NH statewide assessment, OR (3) signed portfolio evaluation letter from a teacher (parent may NOT sign for own child), OR (4) report card from a full-time school outside resident district.
+
+- Other NH education types:
 - Home Education: Governed by RSA 193-A. Requires notification and annual assessment.
 - Charter Schools: Publicly funded, independently operated (RSA 194-B). No tuition.
 - Compulsory attendance: Ages 6-18 (RSA 193:1).

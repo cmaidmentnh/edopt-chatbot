@@ -592,6 +592,13 @@ def _handle_search_content(
                     lines.append(f"- **RSA {rsa.chapter_no}:{rsa.section_no}** - {rsa.section_name}")
                     if rsa.rsa_text:
                         lines.append(f"  {rsa.rsa_text[:200]}...")
+            elif r["content_type"] == "handbook":
+                page = db.get(ContentPage, r["content_id"])
+                if page:
+                    lines.append(f"- **{page.title}** (EFA Parent Handbook, CSFNH)")
+                    text = page.content_text or ""
+                    if text:
+                        lines.append(f"  {text[:500]}...")
             elif r["content_type"] == "legislation":
                 bill = db.get(Legislation, r["content_id"])
                 if bill:
