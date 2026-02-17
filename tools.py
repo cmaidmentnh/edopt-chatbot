@@ -179,40 +179,45 @@ def _handle_search_providers(
     finally:
         db.close()
 
-    results = []
+    local_results = []
+    online_results = []
     for p in providers:
-        # Distance filter
+        # Grade filter (apply to all)
+        if grade_num is not None and p.grade_start is not None and p.grade_end is not None:
+            if not (p.grade_start <= grade_num <= p.grade_end):
+                continue
+
+        # Style filter (apply to all)
+        if style and style != "any":
+            if p.education_style and p.education_style != style:
+                continue
+
+        # Distance filter and categorization
         if p.online_only:
-            distance = 0.0  # Online providers available everywhere
+            online_results.append((p, 0.0))
         elif p.latitude and p.longitude:
             distance = geodesic(coords, (p.latitude, p.longitude)).miles
             if distance > radius_miles:
                 continue
+            local_results.append((p, distance))
         else:
             # No coordinates and not online — skip unless county search matches address
             if is_county and p.address:
                 county_towns = NH_COUNTIES.get(name, {}).get("towns", [])
                 if not any(t in p.address.lower() for t in county_towns):
                     continue
-                distance = 0.0
+                local_results.append((p, 0.0))
             else:
                 continue
 
-        # Grade filter
-        if grade_num is not None and p.grade_start is not None and p.grade_end is not None:
-            if not (p.grade_start <= grade_num <= p.grade_end):
-                continue
+    # Sort local by distance, then append online providers after
+    local_results.sort(key=lambda x: x[1])
+    online_results.sort(key=lambda x: x[0].title)  # alphabetical for online
 
-        # Style filter
-        if style and style != "any":
-            if p.education_style and p.education_style != style:
-                continue
-
-        results.append((p, distance))
-
-    # Sort by distance, limit to 10
-    results.sort(key=lambda x: x[1])
-    results = results[:10]
+    # Prioritize local results; only fill remaining slots with online
+    max_local = min(len(local_results), 8)  # Reserve most slots for local
+    max_online = 10 - max_local  # Fill rest with online
+    results = local_results[:max_local] + online_results[:max_online]
 
     if not results:
         nearby_text = ""
@@ -225,11 +230,28 @@ def _handle_search_providers(
             "which can fund a wide range of education expenses."
         )
 
+    # Label sections for clarity
+    n_local = sum(1 for p, d in results if not p.online_only)
+    n_online = sum(1 for p, d in results if p.online_only)
     lines = [f"Found {len(results)} education provider(s) near {name.title()}:\n"]
+    if n_local > 0 and n_online > 0:
+        lines.append("**Local Options:**\n")
+
+    shown_online_header = False
     for p, dist in results:
+        # Add online section header when transitioning
+        if p.online_only and not shown_online_header and n_local > 0:
+            shown_online_header = True
+            lines.append("\n**Online/Statewide Options:**\n")
+
+        # Provider name with EdOpt profile link
         line = f"**{p.title}**"
         if p.url:
             line = f"[{p.title}]({p.url})"
+        # Add direct website link inline if available and different from EdOpt profile
+        if p.website and p.website != p.url:
+            line += f" | [Website]({p.website})"
+
         parts = []
         if p.address:
             parts.append(f"Address: {p.address}")
@@ -243,8 +265,6 @@ def _handle_search_providers(
             gs = "Pre-K" if p.grade_start == -1 else "K" if p.grade_start == 0 else str(p.grade_start)
             ge = "Post-Secondary" if p.grade_end == 13 else "K" if p.grade_end == 0 else str(p.grade_end)
             parts.append(f"Grades: {gs} - {ge}")
-        if p.website:
-            parts.append(f"Website: {p.website}")
         if p.contact_phone:
             parts.append(f"Phone: {p.contact_phone}")
         if p.contact_email:
@@ -444,20 +464,45 @@ def _handle_search_legislation(
         return f"Bill {bill_number} not found in the {session_year} session."
 
     if search_text:
-        # Search by title keyword
+        # Synonym map for common education topic searches
+        SEARCH_SYNONYMS = {
+            "open enrollment": ["open enrollment", "school assignment", "school choice", "district enrollment", "transfer"],
+            "school choice": ["school choice", "open enrollment", "education freedom", "education options"],
+            "homeschool": ["home education", "homeschool", "home school", "home instruction"],
+            "efa": ["education freedom account", "EFA", "scholarship account"],
+            "charter": ["charter school", "charter", "public academy"],
+            "voucher": ["voucher", "education freedom account", "scholarship", "tuition"],
+            "special education": ["special education", "disability", "IEP", "504"],
+        }
+
+        # Build list of search terms: original + synonyms
+        search_terms = [search_text]
+        for key, synonyms in SEARCH_SYNONYMS.items():
+            if key in search_text.lower():
+                search_terms.extend(s for s in synonyms if s.lower() != search_text.lower())
+                break
+
+        # Search by title keyword across all terms
         db = SessionLocal()
         try:
-            pattern = f"%{search_text}%"
-            bills = db.query(Legislation).filter(
-                Legislation.title.ilike(pattern),
-                Legislation.session_year == session_year,
-            ).order_by(Legislation.bill_number).limit(10).all()
+            seen_ids = set()
+            all_bills = []
+            for term in search_terms:
+                pattern = f"%{term}%"
+                bills = db.query(Legislation).filter(
+                    Legislation.title.ilike(pattern),
+                    Legislation.session_year == session_year,
+                ).order_by(Legislation.bill_number).limit(10).all()
+                for b in bills:
+                    if b.id not in seen_ids:
+                        seen_ids.add(b.id)
+                        all_bills.append(b)
         finally:
             db.close()
 
-        if bills:
+        if all_bills:
             lines = [f"Bills matching '{search_text}' in {session_year} session:\n"]
-            for b in bills:
+            for b in all_bills[:15]:
                 status = _describe_status(b.general_status)
                 lines.append(f"- **{b.bill_number}**: {b.title} [{status}]")
             return "\n".join(lines)
@@ -477,7 +522,8 @@ def _handle_search_legislation(
                 finally:
                     db.close()
                 if bill:
-                    lines.append(f"- **{bill.bill_number}**: {bill.title}")
+                    status = _describe_status(bill.general_status)
+                    lines.append(f"- **{bill.bill_number}**: {bill.title} [{status}]")
             return "\n".join(lines)
 
         return f"No bills found matching '{search_text}' in the {session_year} session."
