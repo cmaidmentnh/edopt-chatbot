@@ -323,11 +323,18 @@ def _handle_lookup_rsa(
     """Look up RSA sections."""
     if chapter and section:
         # Direct lookup from local SQLite cache
+        # DB stores section_no as "193-1" not "1", so try both formats
         db = SessionLocal()
         try:
             rsa = db.query(RSASection).filter_by(
                 chapter_no=chapter, section_no=section
             ).first()
+            if not rsa:
+                # Try chapter-section format (e.g., "193-1" for chapter 193 section 1)
+                alt_section = f"{chapter}-{section}"
+                rsa = db.query(RSASection).filter_by(
+                    chapter_no=chapter, section_no=alt_section
+                ).first()
         finally:
             db.close()
 
@@ -336,8 +343,12 @@ def _handle_lookup_rsa(
             # Truncate very long statutes
             if len(text) > 3000:
                 text = text[:3000] + "\n\n[Text truncated. Full text available at gencourt.state.nh.us]"
+            # Clean display: use "193:1" not "193:193-1"
+            display_section = rsa.section_no
+            if display_section and display_section.startswith(f"{rsa.chapter_no}-"):
+                display_section = display_section[len(rsa.chapter_no) + 1:]
             return (
-                f"**RSA {rsa.chapter_no}:{rsa.section_no} - {rsa.section_name or ''}**\n"
+                f"**RSA {rsa.chapter_no}:{display_section} - {rsa.section_name or ''}**\n"
                 f"Chapter: {rsa.chapter_name or ''}\n"
                 f"Title: {rsa.title_name or ''}\n\n"
                 f"{text}"
@@ -371,7 +382,10 @@ def _handle_lookup_rsa(
             lines.append(f"Found {len(rsas)} sections:\n")
             for r in rsas[:20]:  # Limit to 20 sections
                 summary = (r.rsa_text or "")[:150]
-                lines.append(f"- **{r.chapter_no}:{r.section_no}** - {r.section_name or ''}")
+                ds = r.section_no
+                if ds and ds.startswith(f"{r.chapter_no}-"):
+                    ds = ds[len(r.chapter_no) + 1:]
+                lines.append(f"- **{r.chapter_no}:{ds}** - {r.section_name or ''}")
                 if summary:
                     lines.append(f"  {summary}...")
             if len(rsas) > 20:
@@ -398,8 +412,11 @@ def _handle_lookup_rsa(
                     db.close()
                 if rsa:
                     text_preview = (rsa.rsa_text or "")[:200]
+                    ds = rsa.section_no
+                    if ds and ds.startswith(f"{rsa.chapter_no}-"):
+                        ds = ds[len(rsa.chapter_no) + 1:]
                     lines.append(
-                        f"- **RSA {rsa.chapter_no}:{rsa.section_no}** - {rsa.section_name or ''}\n"
+                        f"- **RSA {rsa.chapter_no}:{ds}** - {rsa.section_name or ''}\n"
                         f"  {text_preview}..."
                     )
             return "\n".join(lines)
@@ -622,7 +639,10 @@ def _handle_search_content(
             elif r["content_type"] == "rsa":
                 rsa = db.get(RSASection, r["content_id"])
                 if rsa:
-                    lines.append(f"- **RSA {rsa.chapter_no}:{rsa.section_no}** - {rsa.section_name}")
+                    ds = rsa.section_no
+                    if ds and ds.startswith(f"{rsa.chapter_no}-"):
+                        ds = ds[len(rsa.chapter_no) + 1:]
+                    lines.append(f"- **RSA {rsa.chapter_no}:{ds}** - {rsa.section_name}")
                     if rsa.rsa_text:
                         lines.append(f"  {rsa.rsa_text[:200]}...")
             elif r["content_type"] == "handbook":
