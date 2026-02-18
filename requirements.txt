@@ -13,4 +13,5 @@ pymssql>=2.2.8
 requests>=2.31.0
 cloudscraper>=1.2.71
 SQLAlchemy>=2.0.0
+openpyxl>=3.1.0
 torch>=2.0.0

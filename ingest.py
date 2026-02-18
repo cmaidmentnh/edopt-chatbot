@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from models import (
     init_db, SessionLocal, Provider, ContentPage, StyleTaxonomy,
     RSASection, Legislation, LegislationSponsor, ContentEmbedding,
+    EducationStatistic,
 )
 from wp_client import fetch_styles, fetch_all_providers, fetch_all_posts, fetch_all_pages
 from gencourt_client import fetch_education_rsas, fetch_current_legislation
@@ -636,6 +637,21 @@ def generate_all_embeddings(db):
         text = f"{b.bill_number} - {b.title}. Sponsors: {sponsor_names}"
         all_records.append(("legislation", b.id, 0, text.strip()))
     logger.info(f"Prepared {len(bills)} legislation embedding texts")
+
+    # Education statistics
+    ed_stats = db.query(EducationStatistic).all()
+    for s in ed_stats:
+        data = json.loads(s.data_json)
+        name = s.district_name or s.school_name or s.town or "Unknown"
+        total = data.get("total", "")
+        label = s.stat_type.replace("_", " ")
+        text = f"{name} {label} {s.school_year}. Total: {total}."
+        if s.sau_name:
+            text += f" SAU: {s.sau_name}."
+        if s.town:
+            text += f" Town: {s.town}."
+        all_records.append(("education_stat", s.id, 0, text.strip()))
+    logger.info(f"Prepared {len(ed_stats)} education statistic embedding texts")
 
     # Batch generate embeddings
     logger.info(f"Generating embeddings for {len(all_records)} total chunks...")

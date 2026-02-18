@@ -10,3 +10,4 @@ last_ingest.json
 dist/
 build/
 .pytest_cache/
+data/*.xlsx

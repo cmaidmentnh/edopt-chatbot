@@ -122,6 +122,23 @@ class LegislationSponsor(Base):
     is_prime_sponsor = Column(Boolean, default=False)
 
 
+class EducationStatistic(Base):
+    __tablename__ = "education_statistics"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    stat_type = Column(String, nullable=False)  # district_enrollment, home_education, cost_per_pupil, nonpublic_enrollment, free_reduced_lunch, school_enrollment
+    school_year = Column(String)  # e.g., '2025-26', 'FY2024'
+    sau_number = Column(Integer)
+    sau_name = Column(String)
+    district_number = Column(Integer)
+    district_name = Column(String)
+    school_number = Column(Integer)
+    school_name = Column(String)
+    town = Column(String)
+    data_json = Column(Text, nullable=False)  # JSON blob with stat-specific metrics
+    ingested_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class ContentEmbedding(Base):
     __tablename__ = "content_embeddings"
 
@@ -170,6 +187,10 @@ Index("idx_legislation_bill", Legislation.bill_number)
 Index("idx_embeddings_type", ContentEmbedding.content_type, ContentEmbedding.content_id)
 Index("idx_messages_session", ChatMessage.session_id, ChatMessage.created_at)
 Index("idx_sessions_active", ChatSession.last_active)
+Index("idx_edstats_type", EducationStatistic.stat_type)
+Index("idx_edstats_district", EducationStatistic.district_name)
+Index("idx_edstats_school", EducationStatistic.school_name)
+Index("idx_edstats_town", EducationStatistic.town)
 
 
 def init_db():

@@ -1,11 +1,13 @@
 """
 Claude tool definitions and handler functions.
-Four tools: search_providers, lookup_rsa, search_legislation, search_content.
+Five tools: search_providers, lookup_rsa, search_legislation, search_content, lookup_education_stats.
 """
+import json
 import logging
 from geopy.distance import geodesic
+from fuzzywuzzy import process as fuzz_process
 
-from models import SessionLocal, Provider, RSASection, Legislation, LegislationSponsor, ContentPage
+from models import SessionLocal, Provider, RSASection, Legislation, LegislationSponsor, ContentPage, EducationStatistic
 from geo import normalize_location, NH_TOWNS, NH_COUNTIES
 from embeddings import search as embedding_search
 
@@ -119,6 +121,34 @@ TOOLS = [
             "required": ["query"],
         },
     },
+    {
+        "name": "lookup_education_stats",
+        "description": (
+            "Look up NH education statistics for a specific district, school, or town. "
+            "Includes enrollment numbers, cost per pupil, home education counts, "
+            "nonpublic school enrollment, and free/reduced lunch eligibility. "
+            "Use when the user asks about school size, enrollment, spending, or demographics."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "district_or_town": {
+                    "type": "string",
+                    "description": "District name, school name, or town (e.g., 'Concord', 'Manchester', 'Laconia')",
+                },
+                "stat_type": {
+                    "type": "string",
+                    "enum": [
+                        "district_enrollment", "home_education", "cost_per_pupil",
+                        "nonpublic_enrollment", "free_reduced_lunch", "school_enrollment",
+                        "all",
+                    ],
+                    "description": "Type of statistic to look up. Default 'all'.",
+                },
+            },
+            "required": ["district_or_town"],
+        },
+    },
 ]
 
 
@@ -129,6 +159,7 @@ def execute_tool(tool_name: str, tool_input: dict) -> str:
         "lookup_rsa": _handle_lookup_rsa,
         "search_legislation": _handle_search_legislation,
         "search_content": _handle_search_content,
+        "lookup_education_stats": _handle_lookup_education_stats,
     }
     handler = handlers.get(tool_name)
     if not handler:
@@ -599,11 +630,151 @@ def _handle_search_content(
                     text = page.content_text or ""
                     if text:
                         lines.append(f"  {text[:500]}...")
+            elif r["content_type"] == "education_stat":
+                stat = db.get(EducationStatistic, r["content_id"])
+                if stat:
+                    data = json.loads(stat.data_json)
+                    label = stat.district_name or stat.school_name or stat.town or "Unknown"
+                    total = data.get("total", "")
+                    lines.append(f"- **{label}** ({stat.stat_type.replace('_', ' ').title()}, {stat.school_year}): {total}")
             elif r["content_type"] == "legislation":
                 bill = db.get(Legislation, r["content_id"])
                 if bill:
                     lines.append(f"- **{bill.bill_number}**: {bill.title}")
     finally:
         db.close()
+
+    return "\n".join(lines)
+
+
+def _handle_lookup_education_stats(
+    district_or_town: str,
+    stat_type: str = "all",
+) -> str:
+    """Look up education statistics for a district, school, or town."""
+    search = district_or_town.strip()
+
+    db = SessionLocal()
+    try:
+        query = db.query(EducationStatistic)
+        if stat_type and stat_type != "all":
+            query = query.filter(EducationStatistic.stat_type == stat_type)
+
+        # Try exact ILIKE match on district_name, school_name, town, sau_name
+        pattern = f"%{search}%"
+        results = query.filter(
+            (EducationStatistic.district_name.ilike(pattern)) |
+            (EducationStatistic.school_name.ilike(pattern)) |
+            (EducationStatistic.town.ilike(pattern)) |
+            (EducationStatistic.sau_name.ilike(pattern))
+        ).all()
+
+        # Fuzzy fallback if no results
+        if not results:
+            all_stats = query.all()
+            candidates = {}
+            for s in all_stats:
+                for name in (s.district_name, s.school_name, s.town, s.sau_name):
+                    if name and name not in candidates:
+                        candidates[name] = name
+            if candidates:
+                match, score = fuzz_process.extractOne(search, list(candidates.keys()))
+                if score >= 70:
+                    pattern = f"%{match}%"
+                    results = query.filter(
+                        (EducationStatistic.district_name.ilike(pattern)) |
+                        (EducationStatistic.school_name.ilike(pattern)) |
+                        (EducationStatistic.town.ilike(pattern)) |
+                        (EducationStatistic.sau_name.ilike(pattern))
+                    ).all()
+
+        if not results:
+            return f"No education statistics found for '{district_or_town}'. Try a different district, school, or town name."
+
+        return _format_education_stats(results, search)
+    finally:
+        db.close()
+
+
+def _format_education_stats(results, search_term: str) -> str:
+    """Format education statistics into readable output."""
+    by_type = {}
+    for r in results:
+        by_type.setdefault(r.stat_type, []).append(r)
+
+    lines = [f"Education statistics for '{search_term}':\n"]
+
+    if "district_enrollment" in by_type:
+        lines.append("**District Enrollment (2025-26):**")
+        for r in by_type["district_enrollment"]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.district_name}: **{data['total']:,}** total students")
+            parts = []
+            for key, label in [("preschool", "PreK"), ("kindergarten", "K"),
+                               ("elementary", "Elem"), ("middle", "Middle"),
+                               ("high", "High")]:
+                if data.get(key):
+                    parts.append(f"{label}: {data[key]:,}")
+            if parts:
+                lines.append(f"  Breakdown: {', '.join(parts)}")
+        lines.append("")
+
+    if "school_enrollment" in by_type:
+        lines.append("**School Enrollment (2025-26):**")
+        for r in by_type["school_enrollment"][:15]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.school_name}: **{data['total']:,}** students")
+            grade_parts = []
+            for key, label in [("preschool", "PreK"), ("kindergarten", "K")]:
+                if data.get(key):
+                    grade_parts.append(f"{label}: {data[key]:,}")
+            for g in range(1, 13):
+                if data.get(f"grade{g}"):
+                    grade_parts.append(f"Gr{g}: {data[f'grade{g}']:,}")
+            if grade_parts:
+                lines.append(f"  {', '.join(grade_parts)}")
+        if len(by_type["school_enrollment"]) > 15:
+            lines.append(f"  ... and {len(by_type['school_enrollment']) - 15} more schools")
+        lines.append("")
+
+    if "home_education" in by_type:
+        lines.append("**Home Education Enrollment (2025-26):**")
+        for r in by_type["home_education"]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.district_name}: **{data['total']:,}** home-educated students")
+        lines.append("")
+
+    if "cost_per_pupil" in by_type:
+        lines.append("**Cost Per Pupil (FY2024, excluding transportation):**")
+        for r in by_type["cost_per_pupil"]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.district_name}: **${data['total']:,}** per pupil overall")
+            parts = []
+            for key, label in [("elementary", "Elementary"), ("middle", "Middle"), ("high", "High")]:
+                if data.get(key):
+                    parts.append(f"{label}: ${data[key]:,}")
+            if parts:
+                lines.append(f"  {', '.join(parts)}")
+        lines.append("")
+
+    if "nonpublic_enrollment" in by_type:
+        lines.append("**Nonpublic School Enrollment (2025-26):**")
+        for r in by_type["nonpublic_enrollment"]:
+            data = json.loads(r.data_json)
+            town_info = f" ({r.town})" if r.town else ""
+            lines.append(f"- {r.school_name}{town_info}: **{data['total']:,}** students")
+        lines.append("")
+
+    if "free_reduced_lunch" in by_type:
+        lines.append("**Free/Reduced Lunch Eligibility (2025-26):**")
+        for r in by_type["free_reduced_lunch"][:15]:
+            data = json.loads(r.data_json)
+            name = r.school_name or r.district_name
+            pct = data.get("pct_eligible")
+            pct_str = f" ({pct}%)" if pct is not None else ""
+            lines.append(f"- {name}: {data.get('eligible', 0):,} of {data['enrollment']:,} eligible{pct_str}")
+        if len(by_type["free_reduced_lunch"]) > 15:
+            lines.append(f"  ... and {len(by_type['free_reduced_lunch']) - 15} more schools")
+        lines.append("")
 
     return "\n".join(lines)
