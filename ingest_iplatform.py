@@ -269,6 +269,61 @@ def parse_school_enrollment(ws):
     return records
 
 
+SUBJECT_NAMES = {"mat": "Math", "rea": "Reading/ELA", "sci": "Science"}
+
+ASSESSMENT_SHEETS = {
+    "assessment22-minimal_Sheet1": "2021-22",
+    "assessment21-minimal_Sheet2": "2020-21",
+    "assessment19-minimal_Sheet1": "2018-19",
+    "assessment18-minimal_Sheet1": "2017-18",
+}
+
+
+def parse_assessment_minimal(ws, school_year):
+    """Parse a minimal assessment sheet.
+    Header row 1, data from row 2.
+    Cols: yearid(0), Level of Data(1), Subject(2), DenominatorType(3),
+          District(4), Discode(5), School(6), Schcode(7), Grade(8),
+          NumberStudents(9), plevel1(10), plevel2(11), plevel3(12), plevel4(13),
+          pAboveprof(14), pBelowProf(15), AvgScore(16)
+    """
+    records = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        vals = list(row)
+        school_name = _str(vals[6])
+        if not school_name:
+            continue
+        district_name = _str(vals[4])
+        subject = _str(vals[2])
+        grade_raw = vals[8]
+        grade = "all" if grade_raw in (0, "0") else grade_raw
+        above = _str(vals[14])
+        below = _str(vals[15])
+        avg_score = _str(vals[16])
+        data = {
+            "subject": subject,
+            "subject_name": SUBJECT_NAMES.get(subject, subject),
+            "grade": grade,
+            "num_students": _str(vals[9]),
+            "pct_above_proficient": above,
+            "pct_below_proficient": below,
+            "avg_score": avg_score if avg_score and avg_score != "Not available" else None,
+            "level1_pct": _str(vals[10]),
+            "level2_pct": _str(vals[11]),
+            "level3_pct": _str(vals[12]),
+            "level4_pct": _str(vals[13]),
+        }
+        records.append(EducationStatistic(
+            stat_type="assessment",
+            school_year=school_year,
+            district_name=district_name,
+            school_number=_int(vals[7]),
+            school_name=school_name,
+            data_json=json.dumps(data),
+        ))
+    return records
+
+
 SHEET_PARSERS = {
     "District Fall Enrollments_Distr": parse_district_enrollment,
     "Home Education Enrollments By D": parse_home_education,
@@ -303,6 +358,19 @@ def main():
                     db.add(r)
                 db.commit()
                 logger.info(f"Stored {len(records)} records from '{sheet_name}'")
+                total += len(records)
+            else:
+                logger.warning(f"Sheet '{sheet_name}' not found — skipping")
+
+        # Assessment sheets (need year parameter)
+        for sheet_name, year in ASSESSMENT_SHEETS.items():
+            if sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                records = parse_assessment_minimal(ws, year)
+                for r in records:
+                    db.add(r)
+                db.commit()
+                logger.info(f"Stored {len(records)} records from '{sheet_name}' ({year})")
                 total += len(records)
             else:
                 logger.warning(f"Sheet '{sheet_name}' not found — skipping")

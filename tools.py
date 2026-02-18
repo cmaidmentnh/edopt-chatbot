@@ -126,8 +126,10 @@ TOOLS = [
         "description": (
             "Look up NH education statistics for a specific district, school, or town. "
             "Includes enrollment numbers, cost per pupil, home education counts, "
-            "nonpublic school enrollment, and free/reduced lunch eligibility. "
-            "Use when the user asks about school size, enrollment, spending, or demographics."
+            "nonpublic school enrollment, free/reduced lunch eligibility, and "
+            "assessment/test score proficiency data (2018-2022). "
+            "Use when the user asks about school size, enrollment, spending, demographics, "
+            "test scores, school performance, or proficiency rates."
         ),
         "input_schema": {
             "type": "object",
@@ -141,7 +143,7 @@ TOOLS = [
                     "enum": [
                         "district_enrollment", "home_education", "cost_per_pupil",
                         "nonpublic_enrollment", "free_reduced_lunch", "school_enrollment",
-                        "all",
+                        "assessment", "all",
                     ],
                     "description": "Type of statistic to look up. Default 'all'.",
                 },
@@ -776,5 +778,58 @@ def _format_education_stats(results, search_term: str) -> str:
         if len(by_type["free_reduced_lunch"]) > 15:
             lines.append(f"  ... and {len(by_type['free_reduced_lunch']) - 15} more schools")
         lines.append("")
+
+    if "assessment" in by_type:
+        # Group assessments by year, then school, then show all-grades summaries
+        by_year = {}
+        for r in by_type["assessment"]:
+            by_year.setdefault(r.school_year, []).append(r)
+
+        # If showing alongside other stats, limit to most recent year
+        assessment_only = len(by_type) == 1
+        years_to_show = sorted(by_year.keys(), reverse=True)
+        if not assessment_only:
+            years_to_show = years_to_show[:1]  # most recent only
+
+        for year in years_to_show:
+            year_records = by_year[year]
+            lines.append(f"**Assessment Results ({year}):**")
+
+            # Group by school
+            by_school = {}
+            for r in year_records:
+                by_school.setdefault(r.school_name, []).append(r)
+
+            subject_names = {"mat": "Math", "rea": "Reading/ELA", "sci": "Science"}
+            school_count = 0
+            for school_name in sorted(by_school.keys()):
+                if school_count >= 10:
+                    lines.append(f"  ... and {len(by_school) - 10} more schools")
+                    break
+                school_count += 1
+                school_records = by_school[school_name]
+
+                # Show all-grades summary first
+                summaries = [r for r in school_records if json.loads(r.data_json).get("grade") == "all"]
+                grade_records = [r for r in school_records if json.loads(r.data_json).get("grade") != "all"]
+
+                if summaries:
+                    subject_parts = []
+                    for s in sorted(summaries, key=lambda x: json.loads(x.data_json)["subject"]):
+                        d = json.loads(s.data_json)
+                        subj = subject_names.get(d["subject"], d["subject"])
+                        above = d.get("pct_above_proficient", "?")
+                        subject_parts.append(f"{subj}: {above}% proficient")
+                    lines.append(f"- {school_name}: {'; '.join(subject_parts)}")
+                elif grade_records:
+                    # No all-grades summary, just show per-grade
+                    subject_parts = []
+                    for s in sorted(grade_records[:3], key=lambda x: json.loads(x.data_json)["subject"]):
+                        d = json.loads(s.data_json)
+                        subj = subject_names.get(d["subject"], d["subject"])
+                        above = d.get("pct_above_proficient", "?")
+                        subject_parts.append(f"{subj} Gr{d['grade']}: {above}%")
+                    lines.append(f"- {school_name}: {'; '.join(subject_parts)}")
+            lines.append("")
 
     return "\n".join(lines)

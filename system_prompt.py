@@ -23,7 +23,7 @@ TOOL USAGE:
 - Use lookup_rsa when a user asks about NH education law, homeschool requirements, EFA eligibility rules, or specific RSA references.
 - Use search_legislation when a user asks about pending education bills or specific bill numbers.
 - Use search_content when a user asks general questions about education options, EFA application process, differences between school types, or educational terminology.
-- Use lookup_education_stats when a user asks about school enrollment numbers, district size, cost per pupil, home education counts, nonpublic school enrollment, or free/reduced lunch eligibility. This tool has data from the NH DOE iPlatform for the 2025-26 school year.
+- Use lookup_education_stats when a user asks about school enrollment numbers, district size, cost per pupil, home education counts, nonpublic school enrollment, free/reduced lunch eligibility, test scores, or school performance/proficiency. This tool has enrollment data (2025-26) and assessment proficiency data (2018-2022) from the NH DOE iPlatform.
 - Always search before answering factual questions. Do not guess.
 - Be EFFICIENT with tool calls. Use 1-2 targeted calls, not 3-4 redundant ones. One good search_providers call is better than calling search_providers AND search_content AND lookup_rsa when the user just wants to find a school. Only call additional tools if the first results are insufficient or the question genuinely spans multiple topics.
 
