@@ -42,6 +42,10 @@ TOOLS = [
                     "type": "integer",
                     "description": "Search radius in miles. Default 20. Increase to 50 if few results found.",
                 },
+                "keyword": {
+                    "type": "string",
+                    "description": "Optional keyword to filter results by relevance (e.g., 'Spanish', 'piano', 'math tutoring'). Only returns providers whose name or description matches.",
+                },
             },
             "required": ["location"],
         },
@@ -125,11 +129,13 @@ TOOLS = [
         "name": "lookup_education_stats",
         "description": (
             "Look up NH education statistics for a specific district, school, or town. "
-            "Includes enrollment numbers, cost per pupil, home education counts, "
-            "nonpublic school enrollment, free/reduced lunch eligibility, and "
-            "assessment/test score proficiency data (2018-2022). "
+            "Includes enrollment (district, school, town — 15 years of history), "
+            "cost per pupil (7 years), assessment/test scores (2008-2024), "
+            "class size, student-teacher ratio, attendance rates, graduation rates, "
+            "teacher/principal salaries, demographics (race/ethnicity, LEP, free/reduced lunch), "
+            "home education counts, nonpublic enrollment, and more. "
             "Use when the user asks about school size, enrollment, spending, demographics, "
-            "test scores, school performance, or proficiency rates."
+            "test scores, school performance, teacher pay, class size, or graduation rates."
         ),
         "input_schema": {
             "type": "object",
@@ -143,9 +149,19 @@ TOOLS = [
                     "enum": [
                         "district_enrollment", "home_education", "cost_per_pupil",
                         "nonpublic_enrollment", "free_reduced_lunch", "school_enrollment",
-                        "assessment", "all",
+                        "assessment", "attendance_rate", "cohort_graduation",
+                        "avg_class_size", "student_teacher_ratio", "teacher_salary",
+                        "teacher_attainment", "staff_fte", "completers_school",
+                        "race_ethnic", "limited_english", "town_enrollment",
+                        "principal_salary", "admin_salary", "teacher_salary_schedule",
+                        "adm", "equalized_valuation",
+                        "all",
                     ],
                     "description": "Type of statistic to look up. Default 'all'.",
+                },
+                "year": {
+                    "type": "string",
+                    "description": "School year to filter by (e.g., '2025-26', '2024-25', 'FY2024'). Omit to get all years.",
                 },
             },
             "required": ["district_or_town"],
@@ -195,6 +211,7 @@ def _handle_search_providers(
     grade: str = None,
     style: str = "any",
     radius_miles: int = 20,
+    keyword: str = None,
 ) -> str:
     """Search for education providers near a location."""
     name, coords, is_county = normalize_location(location)
@@ -205,6 +222,7 @@ def _handle_search_providers(
         )
 
     grade_num = _parse_grade_input(grade)
+    keyword_lower = keyword.strip().lower() if keyword else None
 
     db = SessionLocal()
     try:
@@ -223,6 +241,14 @@ def _handle_search_providers(
         # Style filter (apply to all)
         if style and style != "any":
             if p.education_style and p.education_style != style:
+                continue
+
+        # Keyword filter — match against title, description, styles_raw
+        if keyword_lower:
+            searchable = " ".join(filter(None, [
+                p.title, p.description, p.styles_raw
+            ])).lower()
+            if keyword_lower not in searchable:
                 continue
 
         # Distance filter and categorization
@@ -255,10 +281,11 @@ def _handle_search_providers(
     if not results:
         nearby_text = ""
         if not is_county:
-            # Suggest expanding radius
             nearby_text = f" Try expanding your search radius beyond {radius_miles} miles, or search by county."
+        keyword_text = f" for '{keyword}'" if keyword else ""
         return (
-            f"No providers found near {name.title()} matching your criteria.{nearby_text} "
+            f"No providers found near {name.title()}{keyword_text} matching your criteria.{nearby_text} "
+            "Note: this search only covers the EdOpt.org provider directory, which is growing but may not yet include all specialized providers. "
             "You might also consider online education options or Education Freedom Accounts (EFAs) "
             "which can fund a wide range of education expenses."
         )
@@ -672,6 +699,7 @@ def _handle_search_content(
 def _handle_lookup_education_stats(
     district_or_town: str,
     stat_type: str = "all",
+    year: str = None,
 ) -> str:
     """Look up education statistics for a district, school, or town."""
     search = district_or_town.strip()
@@ -681,6 +709,8 @@ def _handle_lookup_education_stats(
         query = db.query(EducationStatistic)
         if stat_type and stat_type != "all":
             query = query.filter(EducationStatistic.stat_type == stat_type)
+        if year:
+            query = query.filter(EducationStatistic.school_year == year)
 
         # Try exact ILIKE match on district_name, school_name, town, sau_name
         pattern = f"%{search}%"
@@ -767,17 +797,23 @@ def _format_education_stats(results, search_term: str) -> str:
         lines.append("")
 
     if "cost_per_pupil" in by_type:
-        lines.append("**Cost Per Pupil (FY2024, excluding transportation):**")
+        # Group by year, show most recent first
+        cpp_by_year = {}
         for r in by_type["cost_per_pupil"]:
-            data = json.loads(r.data_json)
-            lines.append(f"- {r.district_name}: **${data['total']:,}** per pupil overall")
-            parts = []
-            for key, label in [("elementary", "Elementary"), ("middle", "Middle"), ("high", "High")]:
-                if data.get(key):
-                    parts.append(f"{label}: ${data[key]:,}")
-            if parts:
-                lines.append(f"  {', '.join(parts)}")
-        lines.append("")
+            cpp_by_year.setdefault(r.school_year, []).append(r)
+        years = sorted(cpp_by_year.keys(), reverse=True)[:3]  # show up to 3 years
+        for yr in years:
+            lines.append(f"**Cost Per Pupil ({yr}, excluding transportation):**")
+            for r in cpp_by_year[yr]:
+                data = json.loads(r.data_json)
+                lines.append(f"- {r.district_name}: **${data['total']:,}** per pupil overall")
+                parts = []
+                for key, label in [("elementary", "Elementary"), ("middle", "Middle"), ("high", "High")]:
+                    if data.get(key):
+                        parts.append(f"{label}: ${data[key]:,}")
+                if parts:
+                    lines.append(f"  {', '.join(parts)}")
+            lines.append("")
 
     if "nonpublic_enrollment" in by_type:
         lines.append("**Nonpublic School Enrollment (2025-26):**")
@@ -850,6 +886,154 @@ def _format_education_stats(results, search_term: str) -> str:
                         above = d.get("pct_above_proficient", "?")
                         subject_parts.append(f"{subj} Gr{d['grade']}: {above}%")
                     lines.append(f"- {school_name}: {'; '.join(subject_parts)}")
+            lines.append("")
+
+    # === NEW STAT TYPES ===
+
+    if "attendance_rate" in by_type:
+        lines.append("**Attendance Rate:**")
+        for r in by_type["attendance_rate"][:10]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.district_name} ({r.school_year}): **{data['total_pct']}%** overall")
+            parts = []
+            for key, label in [("elementary_pct", "Elem"), ("middle_pct", "Middle"), ("high_pct", "High")]:
+                if data.get(key):
+                    parts.append(f"{label}: {data[key]}%")
+            if parts:
+                lines.append(f"  {', '.join(parts)}")
+        lines.append("")
+
+    if "cohort_graduation" in by_type:
+        lines.append("**Graduation/Dropout Rate:**")
+        for r in by_type["cohort_graduation"][:10]:
+            data = json.loads(r.data_json)
+            name = r.school_name or r.district_name
+            grad = data.get("graduation_rate", "?")
+            lines.append(f"- {name} ({r.school_year}): **{grad}%** graduation rate (cohort: {data.get('cohort_size', '?')})")
+            if data.get("dropout_rate"):
+                lines.append(f"  Dropout rate: {data['dropout_rate']}%")
+        lines.append("")
+
+    if "avg_class_size" in by_type:
+        lines.append("**Average Class Size (Elementary):**")
+        for r in by_type["avg_class_size"][:10]:
+            data = json.loads(r.data_json)
+            parts = []
+            for key, label in [("grades_1_2", "Gr 1-2"), ("grades_3_4", "Gr 3-4"), ("grades_5_8", "Gr 5-8")]:
+                if data.get(key):
+                    parts.append(f"{label}: {data[key]}")
+            lines.append(f"- {r.district_name}: {', '.join(parts)}")
+        lines.append("")
+
+    if "avg_class_size_school" in by_type:
+        lines.append("**Average Class Size By School (Elementary):**")
+        for r in by_type["avg_class_size_school"][:15]:
+            data = json.loads(r.data_json)
+            parts = []
+            for key, label in [("grades_1_2", "Gr 1-2"), ("grades_3_4", "Gr 3-4"), ("grades_5_8", "Gr 5-8")]:
+                if data.get(key):
+                    parts.append(f"{label}: {data[key]}")
+            lines.append(f"- {r.school_name}: {', '.join(parts)}")
+        lines.append("")
+
+    if "student_teacher_ratio" in by_type:
+        lines.append("**Student-Teacher Ratio:**")
+        for r in by_type["student_teacher_ratio"][:10]:
+            data = json.loads(r.data_json)
+            ratio = data.get("ratio", "?")
+            lines.append(f"- {r.district_name} ({r.school_year}): **{ratio}:1** ({data.get('enrollment', '?')} students, {data.get('teachers', '?')} teachers)")
+        lines.append("")
+
+    if "teacher_salary" in by_type:
+        lines.append("**Teacher Average Salary:**")
+        sal_by_year = {}
+        for r in by_type["teacher_salary"]:
+            sal_by_year.setdefault(r.school_year, []).append(r)
+        for yr in sorted(sal_by_year.keys(), reverse=True)[:2]:
+            for r in sal_by_year[yr]:
+                data = json.loads(r.data_json)
+                lines.append(f"- {r.district_name} ({yr}): **${data['avg_salary']:,}**")
+        lines.append("")
+
+    if "teacher_attainment" in by_type:
+        lines.append("**Teacher Educational Attainment:**")
+        for r in by_type["teacher_attainment"][:10]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.district_name}: {data.get('num_teachers', '?')} teachers — Bachelor's: {data.get('pct_bachelors', '?')}%, Master's: {data.get('pct_masters', '?')}%, Beyond: {data.get('pct_beyond_masters', '?')}%")
+        lines.append("")
+
+    if "staff_fte" in by_type:
+        lines.append("**Staff FTE:**")
+        for r in by_type["staff_fte"][:10]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.district_name}: Teachers: {data.get('teachers', '?')}, Support: {data.get('instruction_support', '?')}, Specialists: {data.get('specialists', '?')}")
+        lines.append("")
+
+    if "limited_english" in by_type:
+        lines.append("**Limited English Proficiency:**")
+        for r in by_type["limited_english"][:10]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.district_name}: {data.get('el_eligible', 0)} EL eligible of {data.get('enrollment', '?')} enrolled")
+        lines.append("")
+
+    if "race_ethnic" in by_type:
+        lines.append("**Race/Ethnicity Enrollment:**")
+        for r in by_type["race_ethnic"][:10]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.district_name}: White: {data.get('white_pct', '?')}, Hispanic: {data.get('hispanic_pct', '?')}, Asian: {data.get('asian_pacific_pct', '?')}, Black: {data.get('black_pct', '?')}, Multi: {data.get('multi_race_pct', '?')}")
+        lines.append("")
+
+    if "completers_school" in by_type:
+        lines.append("**Graduation Outcomes:**")
+        for r in by_type["completers_school"][:10]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.school_name}: {data.get('total', '?')} completers — 4yr college: {data.get('four_year_college_pct', '?')}%, employed: {data.get('employed_pct', '?')}%")
+        lines.append("")
+
+    if "principal_salary" in by_type:
+        lines.append("**Principal Salary:**")
+        for r in by_type["principal_salary"][:10]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.school_name} ({data.get('contact_type', '')}): **${data['salary']:,}**")
+        lines.append("")
+
+    if "teacher_salary_schedule" in by_type:
+        lines.append("**Teacher Salary Schedule:**")
+        for r in by_type["teacher_salary_schedule"][:10]:
+            data = json.loads(r.data_json)
+            min_s = f"${data['min_salary']:,}" if data.get('min_salary') else '?'
+            max_s = f"${data['max_salary']:,}" if data.get('max_salary') else '?'
+            lines.append(f"- {r.district_name} ({data.get('degree_type', '?')}): {min_s} - {max_s} ({data.get('steps', '?')} steps)")
+        lines.append("")
+
+    if "town_enrollment" in by_type:
+        lines.append("**Town Enrollment:**")
+        for r in by_type["town_enrollment"][:10]:
+            data = json.loads(r.data_json)
+            lines.append(f"- {r.town} ({r.school_year}): **{data['total']:,}** students")
+        lines.append("")
+
+    # Generic fallback for types without custom formatting
+    for st in by_type:
+        if st not in {
+            "district_enrollment", "school_enrollment", "home_education",
+            "cost_per_pupil", "nonpublic_enrollment", "free_reduced_lunch",
+            "assessment", "attendance_rate", "cohort_graduation",
+            "avg_class_size", "avg_class_size_school", "student_teacher_ratio",
+            "teacher_salary", "teacher_attainment", "staff_fte",
+            "limited_english", "race_ethnic", "completers_school",
+            "principal_salary", "teacher_salary_schedule", "town_enrollment",
+            "sau_enrollment",
+        }:
+            label = st.replace("_", " ").title()
+            lines.append(f"**{label}:**")
+            for r in by_type[st][:10]:
+                data = json.loads(r.data_json)
+                name = r.district_name or r.school_name or r.town or "Unknown"
+                total = data.get("total", data.get("salary", data.get("rate", "")))
+                lines.append(f"- {name} ({r.school_year}): {total}")
+            if len(by_type[st]) > 10:
+                lines.append(f"  ... and {len(by_type[st]) - 10} more")
             lines.append("")
 
     return "\n".join(lines)

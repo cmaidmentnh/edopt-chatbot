@@ -638,8 +638,25 @@ def generate_all_embeddings(db):
         all_records.append(("legislation", b.id, 0, text.strip()))
     logger.info(f"Prepared {len(bills)} legislation embedding texts")
 
-    # Education statistics
-    ed_stats = db.query(EducationStatistic).all()
+    # Education statistics — only embed current-year and key types
+    # Skip historical, disaggregated, and massive datasets to prevent RAM bloat
+    EMBED_STAT_TYPES = {
+        "district_enrollment", "school_enrollment", "home_education",
+        "cost_per_pupil", "nonpublic_enrollment", "free_reduced_lunch",
+        "assessment", "attendance_rate", "cohort_graduation",
+        "avg_class_size", "avg_class_size_school", "student_teacher_ratio",
+        "teacher_salary", "teacher_attainment", "staff_fte",
+        "town_enrollment", "county_enrollment", "limited_english",
+        "race_ethnic", "completers_school",
+    }
+    EMBED_CURRENT_YEARS = {
+        "2025-26", "2024-25", "FY2024", "FY2025", "FY2026",
+        "2023-24", "2022-23",  # recent assessment years
+    }
+    ed_stats = db.query(EducationStatistic).filter(
+        EducationStatistic.stat_type.in_(EMBED_STAT_TYPES),
+        EducationStatistic.school_year.in_(EMBED_CURRENT_YEARS),
+    ).all()
     for s in ed_stats:
         data = json.loads(s.data_json)
         name = s.district_name or s.school_name or s.town or "Unknown"
@@ -651,7 +668,8 @@ def generate_all_embeddings(db):
         if s.town:
             text += f" Town: {s.town}."
         all_records.append(("education_stat", s.id, 0, text.strip()))
-    logger.info(f"Prepared {len(ed_stats)} education statistic embedding texts")
+    total_ed = db.query(EducationStatistic).count()
+    logger.info(f"Prepared {len(ed_stats)} education statistic embeddings (of {total_ed} total records)")
 
     # Batch generate embeddings
     logger.info(f"Generating embeddings for {len(all_records)} total chunks...")
