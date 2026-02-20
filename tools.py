@@ -704,6 +704,9 @@ def _handle_lookup_education_stats(
     """Look up education statistics for a district, school, or town."""
     search = district_or_town.strip()
 
+    # Detect county queries (e.g., "Sullivan County", "Sullivan")
+    county_towns = _detect_county_query(search)
+
     db = SessionLocal()
     try:
         query = db.query(EducationStatistic)
@@ -712,33 +715,37 @@ def _handle_lookup_education_stats(
         if year:
             query = query.filter(EducationStatistic.school_year == year)
 
-        # Try exact ILIKE match on district_name, school_name, town, sau_name
-        pattern = f"%{search}%"
-        results = query.filter(
-            (EducationStatistic.district_name.ilike(pattern)) |
-            (EducationStatistic.school_name.ilike(pattern)) |
-            (EducationStatistic.town.ilike(pattern)) |
-            (EducationStatistic.sau_name.ilike(pattern))
-        ).all()
+        if county_towns:
+            # County-based search: filter by towns belonging to the county
+            results = _filter_by_county_towns(query, county_towns)
+        else:
+            # Standard search: ILIKE match on name fields
+            pattern = f"%{search}%"
+            results = query.filter(
+                (EducationStatistic.district_name.ilike(pattern)) |
+                (EducationStatistic.school_name.ilike(pattern)) |
+                (EducationStatistic.town.ilike(pattern)) |
+                (EducationStatistic.sau_name.ilike(pattern))
+            ).all()
 
-        # Fuzzy fallback if no results
-        if not results:
-            all_stats = query.all()
-            candidates = {}
-            for s in all_stats:
-                for name in (s.district_name, s.school_name, s.town, s.sau_name):
-                    if name and name not in candidates:
-                        candidates[name] = name
-            if candidates:
-                match, score = fuzz_process.extractOne(search, list(candidates.keys()))
-                if score >= 70:
-                    pattern = f"%{match}%"
-                    results = query.filter(
-                        (EducationStatistic.district_name.ilike(pattern)) |
-                        (EducationStatistic.school_name.ilike(pattern)) |
-                        (EducationStatistic.town.ilike(pattern)) |
-                        (EducationStatistic.sau_name.ilike(pattern))
-                    ).all()
+            # Fuzzy fallback if no results
+            if not results:
+                all_stats = query.all()
+                candidates = {}
+                for s in all_stats:
+                    for name in (s.district_name, s.school_name, s.town, s.sau_name):
+                        if name and name not in candidates:
+                            candidates[name] = name
+                if candidates:
+                    match, score = fuzz_process.extractOne(search, list(candidates.keys()))
+                    if score >= 70:
+                        pattern = f"%{match}%"
+                        results = query.filter(
+                            (EducationStatistic.district_name.ilike(pattern)) |
+                            (EducationStatistic.school_name.ilike(pattern)) |
+                            (EducationStatistic.town.ilike(pattern)) |
+                            (EducationStatistic.sau_name.ilike(pattern))
+                        ).all()
 
         if not results:
             return f"No education statistics found for '{district_or_town}'. Try a different district, school, or town name."
@@ -746,6 +753,30 @@ def _handle_lookup_education_stats(
         return _format_education_stats(results, search)
     finally:
         db.close()
+
+
+def _detect_county_query(search: str) -> list[str] | None:
+    """Check if search term is a county name. Returns list of towns or None."""
+    s = search.lower().replace(" county", "").strip()
+    county_data = NH_COUNTIES.get(s)
+    if county_data:
+        return county_data.get("towns", [])
+    return None
+
+
+def _filter_by_county_towns(query, towns: list[str]) -> list:
+    """Filter education stats to only records matching towns in a county.
+    Matches district_name or town field against county town list."""
+    from sqlalchemy import or_
+
+    conditions = []
+    for town in towns:
+        pattern = f"%{town}%"
+        conditions.append(EducationStatistic.district_name.ilike(pattern))
+        conditions.append(EducationStatistic.town.ilike(pattern))
+    if not conditions:
+        return []
+    return query.filter(or_(*conditions)).all()
 
 
 def _format_education_stats(results, search_term: str) -> str:
