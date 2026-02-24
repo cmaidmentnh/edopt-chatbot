@@ -27,7 +27,7 @@ TOOLS = [
             "properties": {
                 "location": {
                     "type": "string",
-                    "description": "NH town, city, or county name (e.g., 'Concord', 'Hillsborough County')",
+                    "description": "NH town, city, county, or region name (e.g., 'Concord', 'Hillsborough County', 'Upper Valley', 'Seacoast')",
                 },
                 "grade": {
                     "type": "string",
@@ -244,11 +244,13 @@ def _handle_search_providers(
                 continue
 
         # Keyword filter — match against title, description, styles_raw
+        # Uses word-by-word matching: all keyword words must appear individually
         if keyword_lower:
             searchable = " ".join(filter(None, [
                 p.title, p.description, p.styles_raw
             ])).lower()
-            if keyword_lower not in searchable:
+            keyword_words = keyword_lower.split()
+            if not all(word in searchable for word in keyword_words):
                 continue
 
         # Distance filter and categorization

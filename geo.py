@@ -102,6 +102,21 @@ NH_TOWNS = {
     'wolfeboro': (43.5859, -71.2076), 'woodstock': (43.9776, -71.6851),
 }
 
+# Common NH regional names mapped to representative town for searching
+NH_REGIONS = {
+    "upper valley": "lebanon",
+    "seacoast": "portsmouth",
+    "lakes region": "laconia",
+    "north country": "littleton",
+    "monadnock region": "keene",
+    "monadnock": "keene",
+    "great north woods": "colebrook",
+    "dartmouth-lake sunapee": "new london",
+    "lake sunapee": "new london",
+    "merrimack valley": "concord",
+    "white mountains": "lincoln",
+}
+
 NH_COUNTIES = {
     "belknap": {
         "center": (43.5200, -71.4234),
@@ -194,6 +209,11 @@ def normalize_location(text: str):
     for county_name, county_data in NH_COUNTIES.items():
         if text_lower == county_name or text_lower == f"{county_name} county":
             return county_name, county_data["center"], True
+
+    # Match on regional names (Upper Valley, Seacoast, Lakes Region, etc.)
+    if text_lower in NH_REGIONS:
+        town = NH_REGIONS[text_lower]
+        return town, NH_TOWNS[town], False
 
     # Fuzzy match on towns (threshold 80)
     town_names = list(NH_TOWNS.keys())
