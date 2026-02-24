@@ -1030,6 +1030,21 @@ def _format_education_stats(results, search_term: str) -> str:
             lines.append(f"- {r.school_name} ({data.get('contact_type', '')}): **${data['salary']:,}**")
         lines.append("")
 
+    if "admin_salary" in by_type:
+        lines.append("**Admin Salary (by SAU):**")
+        sal_by_year = {}
+        for r in by_type["admin_salary"]:
+            sal_by_year.setdefault(r.school_year, []).append(r)
+        for yr in sorted(sal_by_year.keys(), reverse=True)[:2]:
+            lines.append(f"  *{yr}:*")
+            for r in sal_by_year[yr]:
+                data = json.loads(r.data_json)
+                name = r.sau_name or r.district_name or "Unknown SAU"
+                role = data.get("contact_type", "Administrator")
+                salary = data.get("salary", 0)
+                lines.append(f"- {name} — {role}: **${salary:,}**")
+        lines.append("")
+
     if "teacher_salary_schedule" in by_type:
         lines.append("**Teacher Salary Schedule:**")
         for r in by_type["teacher_salary_schedule"][:10]:
@@ -1055,14 +1070,14 @@ def _format_education_stats(results, search_term: str) -> str:
             "avg_class_size", "avg_class_size_school", "student_teacher_ratio",
             "teacher_salary", "teacher_attainment", "staff_fte",
             "limited_english", "race_ethnic", "completers_school",
-            "principal_salary", "teacher_salary_schedule", "town_enrollment",
+            "principal_salary", "admin_salary", "teacher_salary_schedule", "town_enrollment",
             "sau_enrollment",
         }:
             label = st.replace("_", " ").title()
             lines.append(f"**{label}:**")
             for r in by_type[st][:10]:
                 data = json.loads(r.data_json)
-                name = r.district_name or r.school_name or r.town or "Unknown"
+                name = r.district_name or r.school_name or r.sau_name or r.town or "Unknown"
                 total = data.get("total", data.get("salary", data.get("rate", "")))
                 lines.append(f"- {name} ({r.school_year}): {total}")
             if len(by_type[st]) > 10:

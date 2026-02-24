@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 
 import anthropic
 
-from config import ANTHROPIC_API_KEY, CLAUDE_MODEL, MAX_HISTORY_TURNS
+from config import ANTHROPIC_API_KEY, CLAUDE_MODEL, MAX_HISTORY_TURNS, MAX_TOKENS
 from models import SessionLocal, ChatSession, ChatMessage
 from system_prompt import build_system_prompt
 from tools import TOOLS, execute_tool
@@ -91,7 +91,7 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
     try:
         response = client.messages.create(
             model=CLAUDE_MODEL,
-            max_tokens=1024,
+            max_tokens=MAX_TOKENS,
             system=build_system_prompt(),
             tools=TOOLS,
             messages=messages,
@@ -131,7 +131,7 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
         try:
             response = client.messages.create(
                 model=CLAUDE_MODEL,
-                max_tokens=1024,
+                max_tokens=MAX_TOKENS,
                 system=build_system_prompt(),
                 tools=TOOLS,
                 messages=messages,

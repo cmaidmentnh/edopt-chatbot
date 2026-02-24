@@ -33,5 +33,6 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "https://edopt.org").split(",")
 
 # Chat
 MAX_HISTORY_TURNS = 10
+MAX_TOKENS = 2048
 RATE_LIMIT = "15/minute"
 SESSION_TTL_HOURS = 24
