@@ -47,7 +47,7 @@ def get_connection():
         user=GENCOURT_USER,
         password=GENCOURT_PASS,
         database=GENCOURT_DB,
-        tds_version="7.0",
+        tds_version="7.1",
     )
 
 

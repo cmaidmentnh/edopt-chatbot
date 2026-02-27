@@ -244,14 +244,19 @@ def _handle_search_providers(
                 continue
 
         # Keyword filter — match against title, description, styles_raw
-        # Uses word-by-word matching: all keyword words must appear individually
+        # Uses word-by-word matching first, then fuzzy title match as fallback
         if keyword_lower:
             searchable = " ".join(filter(None, [
                 p.title, p.description, p.styles_raw
             ])).lower()
             keyword_words = keyword_lower.split()
+            # Exact word match
             if not all(word in searchable for word in keyword_words):
-                continue
+                # Fuzzy fallback: check if keyword is close to provider title
+                from fuzzywuzzy import fuzz
+                title_lower = (p.title or "").lower()
+                if fuzz.partial_ratio(keyword_lower, title_lower) < 75:
+                    continue
 
         # Distance filter and categorization
         if p.online_only:
@@ -384,8 +389,12 @@ def _handle_lookup_rsa(
             )
 
         # Try live lookup from GenCourt if not in cache
-        from gencourt_client import lookup_rsa_section
-        result = lookup_rsa_section(chapter, section)
+        try:
+            from gencourt_client import lookup_rsa_section
+            result = lookup_rsa_section(chapter, section)
+        except Exception as e:
+            logger.warning(f"GenCourt RSA lookup failed: {e}")
+            result = None
         if result:
             text = result["rsa_text"] or "(No text available)"
             if len(text) > 3000:
@@ -517,10 +526,14 @@ def _handle_search_legislation(
             db.close()
 
         # Try live lookup from GenCourt (try both formats)
-        from gencourt_client import get_bill_details
-        details = get_bill_details(bn_nospace, session_year)
-        if not details:
-            details = get_bill_details(bn_spaced, session_year)
+        try:
+            from gencourt_client import get_bill_details
+            details = get_bill_details(bn_nospace, session_year)
+            if not details:
+                details = get_bill_details(bn_spaced, session_year)
+        except Exception as e:
+            logger.warning(f"GenCourt bill lookup failed: {e}")
+            details = None
         if details:
             lines = [
                 f"**{details['bill_number']}**: {details['title']}",
@@ -584,12 +597,13 @@ def _handle_search_legislation(
             for b in all_bills[:15]:
                 status = _describe_status(b.general_status)
                 lines.append(f"- **{b.bill_number}**: {b.title} [{status}]")
+            lines.append(f"\nNOTE: These are the ONLY bills found matching '{search_text}'. Do NOT describe any bill not listed above. If the user asked about a specific bill that is not in these results, say you could not find it.")
             return "\n".join(lines)
 
-        # Fallback: try embedding search
+        # Fallback: try embedding search (these are approximate matches, not exact)
         results = embedding_search(search_text, content_type="legislation", top_k=5)
         if results:
-            lines = [f"Bills related to '{search_text}':\n"]
+            lines = [f"Bills possibly related to '{search_text}' (approximate matches — may not be directly on topic):\n"]
             seen = set()
             for r in results:
                 if r["content_id"] in seen:
