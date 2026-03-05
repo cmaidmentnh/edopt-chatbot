@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EdOpt Assistant — Beta</title>
+    <title>EdOpt Navigator</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -214,7 +214,7 @@
     <div class="header">
         <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg>
         <div class="header-text">
-            <h1>EdOpt Assistant</h1>
+            <h1>EdOpt Navigator</h1>
             <p>New Hampshire Education Options</p>
         </div>
         <span class="beta-badge">BETA</span>
@@ -393,7 +393,7 @@
                 addMessage(data.answer, 'assistant');
             } catch (e) {
                 hideTyping();
-                addMessage("Hi! I'm the EdOpt Assistant. How can I help you explore education options in New Hampshire?", 'assistant');
+                addMessage("Hi! I'm the EdOpt Navigator. How can I help you explore education options in New Hampshire?", 'assistant');
             }
 
             if (selfTestMsg) {

@@ -159,7 +159,7 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
 async def get_greeting() -> str:
     """Return a static greeting message."""
     return (
-        "Hi there! I'm the EdOpt Assistant, here to help you explore "
+        "Hi there! I'm the EdOpt Navigator, here to help you explore "
         "education options in New Hampshire.\n\n"
         "I can help you:\n"
         "- **Find schools and programs** near you\n"
