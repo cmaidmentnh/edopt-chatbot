@@ -145,6 +145,9 @@ async def api_conversations():
             .all()
         )
         total_messages = db.query(ChatMessage).count()
+        unique_ips = db.query(ChatSession.ip_address).filter(
+            ChatSession.ip_address.isnot(None)
+        ).distinct().count()
         result = []
         for s in sessions:
             messages = (
@@ -171,6 +174,7 @@ async def api_conversations():
         return {
             "total_sessions": len(sessions),
             "total_messages": total_messages,
+            "unique_ips": unique_ips,
             "sessions": result,
         }
     finally:

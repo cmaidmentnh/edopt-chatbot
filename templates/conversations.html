@@ -185,7 +185,7 @@
             const container = document.getElementById('container');
             const stats = document.getElementById('stats');
 
-            stats.textContent = data.total_sessions + ' sessions, ' + data.total_messages + ' messages';
+            stats.textContent = data.total_sessions + ' sessions, ' + data.total_messages + ' messages, ' + (data.unique_ips || 0) + ' unique users';
 
             if (!data.sessions.length) {
                 container.innerHTML = '<div class="empty-state"><h2>No conversations yet</h2><p>Conversations will appear here once users start chatting.</p></div>';

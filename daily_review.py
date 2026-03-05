@@ -36,10 +36,23 @@ AWS_REGION = "us-east-1"
 
 
 def get_recent_conversations(hours=24):
-    """Fetch conversations from the last N hours."""
+    """Fetch conversations since the last review (or last N hours as fallback)."""
     db = SessionLocal()
     try:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        # Use last review timestamp if available, otherwise fall back to hours
+        past_notes = load_past_notes()
+        last_review = None
+        if past_notes.get("last_review_utc"):
+            try:
+                last_review = datetime.fromisoformat(past_notes["last_review_utc"])
+            except (ValueError, TypeError):
+                pass
+
+        if last_review:
+            cutoff = last_review
+        else:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+
         sessions = (
             db.query(ChatSession)
             .filter(ChatSession.last_active >= cutoff)
@@ -101,7 +114,7 @@ def analyze_conversations(conversations, past_notes):
 
     conv_text = ""
     for i, conv in enumerate(conversations, 1):
-        conv_text += f"\n--- Conversation {i} (session {conv['session_id']}, {conv['time']}) ---\n"
+        conv_text += f"\n--- Conversation {i} (session {conv['session_id']}, IP: {conv['ip'] or 'unknown'}, {conv['time']}) ---\n"
         for msg in conv["messages"]:
             role = "USER" if msg["role"] == "user" else "BOT"
             conv_text += f"{role}: {msg['content']}\n"
@@ -112,7 +125,7 @@ def analyze_conversations(conversations, past_notes):
 
     prompt = f"""You are reviewing conversation logs from the EdOpt.org chatbot — an AI assistant that helps New Hampshire families explore education options (schools, homeschool, EFAs, charter schools, legislation).
 
-Here are the conversations from the last 24 hours:
+Here are ALL conversations from the last 24 hours:
 
 {conv_text}
 
@@ -123,29 +136,32 @@ Please analyze these conversations and provide:
 
 1. **SUMMARY**: Brief overview — how many conversations, what topics were asked about, overall quality of responses.
 
-2. **ISSUES FOUND**: Specific problems you noticed:
+2. **THEMES DISCOVERED**: Identify the main themes and topics users are asking about. For each theme, provide a one-sentence summary and the number of conversations that touched on it. This helps us understand what families care about most.
+
+3. **ISSUES FOUND**: Specific problems you noticed:
    - Incorrect or fabricated information
    - Responses that were too long or too short
    - Questions the bot couldn't answer well
    - Missing tool usage (should have searched but didn't)
+   - Context loss (bot forgetting earlier conversation details)
    - Confusing or unhelpful formatting
    - Tone issues
 
-3. **IMPROVEMENT SUGGESTIONS**: Concrete, actionable changes to make:
+4. **IMPROVEMENT SUGGESTIONS**: Concrete, actionable changes to make:
    - System prompt tweaks (be specific about what to add/change)
    - New tool capabilities needed
    - Response length/format adjustments
    - Missing knowledge areas
 
-4. **POSITIVE OBSERVATIONS**: What worked well — good responses worth noting.
+5. **POSITIVE OBSERVATIONS**: What worked well — good responses worth noting.
 
-5. **PRIORITY FIXES**: Top 3 most impactful changes to make, ranked.
+6. **PRIORITY FIXES**: Top 3 most impactful changes to make, ranked.
 
-Be specific and actionable. Reference actual conversation examples. Keep the total response under 1000 words."""
+Be specific and actionable. Reference actual conversation examples. Keep the total response under 1200 words."""
 
     response = client.messages.create(
         model="claude-sonnet-4-5-20250929",
-        max_tokens=1500,
+        max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
 
@@ -199,6 +215,8 @@ def main():
     })
     # Keep last 30 reviews
     past_notes["reviews"] = past_notes["reviews"][-30:]
+    # Track when this review ran so next run picks up from here
+    past_notes["last_review_utc"] = datetime.now(timezone.utc).isoformat()
     save_notes(past_notes)
 
     # Build email
@@ -207,13 +225,15 @@ def main():
         len([m for m in c["messages"] if m["role"] == "user"])
         for c in conversations
     )
+    unique_ips = len(set(c["ip"] for c in conversations if c.get("ip")))
 
-    subject = f"EdOpt Chatbot Daily Review — {date_str} ({len(conversations)} conversations)"
+    subject = f"EdOpt Chatbot Daily Review — {date_str} ({len(conversations)} conversations, {unique_ips} unique users)"
 
     body = f"""EdOpt Chatbot — Daily Conversation Review
 {'=' * 50}
 Date: {date_str}
 Conversations reviewed: {len(conversations)}
+Unique users (by IP): {unique_ips}
 Total user questions: {total_user_msgs}
 
 {analysis}

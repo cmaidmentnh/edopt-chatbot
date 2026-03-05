@@ -18,6 +18,7 @@
       ? new URL(_script.src).origin
       : window.location.origin;
   const STORAGE_KEY = "edopt_chat_session_id";
+  const VISITED_KEY = "edopt_chat_visited";
   const SESSION_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
   let sessionId = null;
@@ -156,7 +157,14 @@
           </svg>
           EdOpt Assistant
         </div>
-        <button class="edopt-chat-close" aria-label="Close chat">&times;</button>
+        <div class="edopt-chat-header-actions">
+          <button class="edopt-chat-expand" aria-label="Open in new window" title="Open in new window">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+              <path d="M19 19H5V5h7V3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" fill="white"/>
+            </svg>
+          </button>
+          <button class="edopt-chat-close" aria-label="Close chat">&times;</button>
+        </div>
       </div>
       <div class="edopt-chat-messages" id="edopt-messages"></div>
       <div class="edopt-chat-input-area">
@@ -179,6 +187,7 @@
 
     // Event listeners
     panel.querySelector(".edopt-chat-close").onclick = togglePanel;
+    panel.querySelector(".edopt-chat-expand").onclick = openInNewWindow;
 
     const input = document.getElementById("edopt-input");
     const sendBtn = document.getElementById("edopt-send");
@@ -196,6 +205,15 @@
       this.style.height = "auto";
       this.style.height = Math.min(this.scrollHeight, 80) + "px";
     });
+  }
+
+  function openInNewWindow() {
+    // Open the chat in a dedicated browser window
+    var url = API_BASE + "/beta";
+    if (sessionId) {
+      url += "?session_id=" + encodeURIComponent(sessionId);
+    }
+    window.open(url, "edopt_chat", "width=500,height=700,scrollbars=yes,resizable=yes");
   }
 
   function togglePanel() {
@@ -319,6 +337,17 @@
     sessionId = getSession();
     loadCSS();
     buildWidget();
+
+    // Auto-open on first visit (if user hasn't seen the widget before)
+    try {
+      if (!localStorage.getItem(VISITED_KEY)) {
+        localStorage.setItem(VISITED_KEY, "1");
+        // Small delay to let the page settle before opening
+        setTimeout(function () {
+          if (!isOpen) togglePanel();
+        }, 1500);
+      }
+    } catch (e) {}
   }
 
   if (document.readyState === "loading") {

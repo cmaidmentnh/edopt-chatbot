@@ -215,16 +215,16 @@ def normalize_location(text: str):
         town = NH_REGIONS[text_lower]
         return town, NH_TOWNS[town], False
 
-    # Fuzzy match on towns (threshold 80)
+    # Fuzzy match on towns (threshold 75)
     town_names = list(NH_TOWNS.keys())
     match, score = process.extractOne(text_lower, town_names)
-    if score >= 80:
+    if score >= 75:
         return match, NH_TOWNS[match], False
 
     # Fuzzy match on county names
     county_names = list(NH_COUNTIES.keys())
     match, score = process.extractOne(text_lower, county_names)
-    if score >= 80:
+    if score >= 75:
         return match, NH_COUNTIES[match]["center"], True
 
     return None, None, False
