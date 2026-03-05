@@ -102,12 +102,20 @@ async def chat(req: ChatRequest, request: Request):
 
 @app.get("/widget.js")
 async def widget_js():
-    return FileResponse("static/widget.js", media_type="application/javascript")
+    return FileResponse(
+        "static/widget.js",
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 @app.get("/widget.css")
 async def widget_css():
-    return FileResponse("static/widget.css", media_type="text/css")
+    return FileResponse(
+        "static/widget.css",
+        media_type="text/css",
+        headers={"Cache-Control": "no-cache, must-revalidate"},
+    )
 
 
 @app.get("/demo", response_class=HTMLResponse)
