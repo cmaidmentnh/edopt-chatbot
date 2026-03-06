@@ -178,6 +178,8 @@
         </button>
       </div>
       <div class="edopt-chat-footer">
+        <a href="#" class="edopt-email-link" id="edopt-email-btn">Email this conversation</a>
+        &nbsp;|&nbsp;
         Powered by <a href="https://edopt.org" target="_blank">EdOpt.org</a>
       </div>
     `;
@@ -188,6 +190,7 @@
     // Event listeners
     panel.querySelector(".edopt-chat-close").onclick = togglePanel;
     panel.querySelector(".edopt-chat-expand").onclick = openInNewWindow;
+    document.getElementById("edopt-email-btn").onclick = emailConversation;
 
     const input = document.getElementById("edopt-input");
     const sendBtn = document.getElementById("edopt-send");
@@ -205,6 +208,34 @@
       this.style.height = "auto";
       this.style.height = Math.min(this.scrollHeight, 80) + "px";
     });
+  }
+
+  function emailConversation(e) {
+    e.preventDefault();
+    if (!sessionId) {
+      alert("No conversation to email yet.");
+      return;
+    }
+    var email = prompt("Enter your email address to receive this conversation:");
+    if (!email || email.indexOf("@") === -1) return;
+    var btn = document.getElementById("edopt-email-btn");
+    btn.textContent = "Sending...";
+    fetch(API_BASE + "/email-conversation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, email: email }),
+    })
+      .then(function (resp) {
+        if (!resp.ok) throw new Error("Failed");
+        btn.textContent = "Sent!";
+        setTimeout(function () {
+          btn.textContent = "Email this conversation";
+        }, 3000);
+      })
+      .catch(function () {
+        btn.textContent = "Email this conversation";
+        alert("Sorry, could not send the email. Please try again.");
+      });
   }
 
   function openInNewWindow() {

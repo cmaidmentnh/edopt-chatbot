@@ -238,6 +238,9 @@
                 <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
             </button>
         </div>
+        <div style="text-align:center; margin-top:4px;">
+            <a href="#" id="email-btn" onclick="emailConversation(event)" style="font-size:12px; color:#64748b;">Email this conversation</a>
+        </div>
     </div>
 
     <script>
@@ -401,6 +404,27 @@
                 document.getElementById('input').value = selfTestMsg;
                 await sendMessage();
             }
+        }
+
+        function emailConversation(e) {
+            e.preventDefault();
+            if (!sessionId) { alert('No conversation to email yet.'); return; }
+            var email = prompt('Enter your email address to receive this conversation:');
+            if (!email || email.indexOf('@') === -1) return;
+            var btn = document.getElementById('email-btn');
+            btn.textContent = 'Sending...';
+            fetch(API_BASE + '/email-conversation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ session_id: sessionId, email: email })
+            }).then(function(resp) {
+                if (!resp.ok) throw new Error('Failed');
+                btn.textContent = 'Sent!';
+                setTimeout(function() { btn.textContent = 'Email this conversation'; }, 3000);
+            }).catch(function() {
+                btn.textContent = 'Email this conversation';
+                alert('Sorry, could not send the email. Please try again.');
+            });
         }
 
         // Auto-resize textarea

@@ -224,57 +224,90 @@ def _handle_search_providers(
     grade_num = _parse_grade_input(grade)
     keyword_lower = keyword.strip().lower() if keyword else None
 
+    # Keyword synonyms for fallback when initial search returns nothing
+    KEYWORD_SYNONYMS = {
+        "gifted": ["advanced", "enrichment", "talented", "accelerated", "stem"],
+        "therapy": ["counseling", "support", "social-emotional", "behavioral"],
+        "special needs": ["disability", "iep", "504", "accommodations", "therapeutic"],
+        "music": ["piano", "guitar", "violin", "instrument", "band", "choir"],
+        "art": ["arts", "creative", "painting", "drawing", "pottery"],
+        "spanish": ["language", "bilingual", "immersion"],
+        "math": ["stem", "tutoring", "academic"],
+        "reading": ["literacy", "tutoring", "academic", "dyslexia"],
+        "montessori": ["self-directed", "progressive", "alternative"],
+        "classical": ["liberal arts", "great books", "traditional"],
+        "waldorf": ["steiner", "progressive", "alternative"],
+    }
+
+    def _search_providers_with_keyword(providers_list, kw_lower, coords_val, radius, is_county_val, county_name):
+        """Inner search function for a single keyword."""
+        local = []
+        online = []
+        for p in providers_list:
+            if kw_lower:
+                searchable = " ".join(filter(None, [
+                    p.title, p.description, p.styles_raw
+                ])).lower()
+                keyword_words = kw_lower.split()
+                if not all(word in searchable for word in keyword_words):
+                    from fuzzywuzzy import fuzz
+                    title_lower = (p.title or "").lower()
+                    if fuzz.partial_ratio(kw_lower, title_lower) < 75:
+                        continue
+            if p.online_only:
+                online.append((p, 0.0))
+            elif p.latitude and p.longitude:
+                distance = geodesic(coords_val, (p.latitude, p.longitude)).miles
+                if distance > radius:
+                    continue
+                local.append((p, distance))
+            else:
+                if is_county_val and p.address:
+                    county_towns = NH_COUNTIES.get(county_name, {}).get("towns", [])
+                    if not any(t in p.address.lower() for t in county_towns):
+                        continue
+                    local.append((p, 0.0))
+                else:
+                    continue
+        return local, online
+
     db = SessionLocal()
     try:
         providers = db.query(Provider).all()
     finally:
         db.close()
 
-    local_results = []
-    online_results = []
+    # Pre-filter by grade and style (applied once, not per keyword)
+    filtered_providers = []
     for p in providers:
-        # Grade filter (apply to all)
+        # Grade filter
         if grade_num is not None and p.grade_start is not None and p.grade_end is not None:
             if not (p.grade_start <= grade_num <= p.grade_end):
                 continue
-
-        # Style filter (apply to all)
+        # Style filter
         if style and style != "any":
             if p.education_style and p.education_style != style:
                 continue
+        filtered_providers.append(p)
 
-        # Keyword filter — match against title, description, styles_raw
-        # Uses word-by-word matching first, then fuzzy title match as fallback
-        if keyword_lower:
-            searchable = " ".join(filter(None, [
-                p.title, p.description, p.styles_raw
-            ])).lower()
-            keyword_words = keyword_lower.split()
-            # Exact word match
-            if not all(word in searchable for word in keyword_words):
-                # Fuzzy fallback: check if keyword is close to provider title
-                from fuzzywuzzy import fuzz
-                title_lower = (p.title or "").lower()
-                if fuzz.partial_ratio(keyword_lower, title_lower) < 75:
-                    continue
+    # Search with primary keyword
+    local_results, online_results = _search_providers_with_keyword(
+        filtered_providers, keyword_lower, coords, radius_miles, is_county, name
+    )
 
-        # Distance filter and categorization
-        if p.online_only:
-            online_results.append((p, 0.0))
-        elif p.latitude and p.longitude:
-            distance = geodesic(coords, (p.latitude, p.longitude)).miles
-            if distance > radius_miles:
-                continue
-            local_results.append((p, distance))
-        else:
-            # No coordinates and not online — skip unless county search matches address
-            if is_county and p.address:
-                county_towns = NH_COUNTIES.get(name, {}).get("towns", [])
-                if not any(t in p.address.lower() for t in county_towns):
-                    continue
-                local_results.append((p, 0.0))
-            else:
-                continue
+    # Synonym fallback: if keyword search returned nothing, try related terms
+    synonym_used = None
+    if keyword_lower and not local_results and not online_results:
+        for key, synonyms in KEYWORD_SYNONYMS.items():
+            if key in keyword_lower or keyword_lower in key:
+                for syn in synonyms:
+                    local_results, online_results = _search_providers_with_keyword(
+                        filtered_providers, syn, coords, radius_miles, is_county, name
+                    )
+                    if local_results or online_results:
+                        synonym_used = syn
+                        break
+                break
 
     # Sort local by distance, then append online providers after
     local_results.sort(key=lambda x: x[1])
@@ -300,7 +333,10 @@ def _handle_search_providers(
     # Label sections for clarity
     n_local = sum(1 for p, d in results if not p.online_only)
     n_online = sum(1 for p, d in results if p.online_only)
-    lines = [f"Found {len(results)} education provider(s) near {name.title()}:\n"]
+    header = f"Found {len(results)} education provider(s) near {name.title()}:\n"
+    if synonym_used:
+        header = f"No exact matches for '{keyword}', but found {len(results)} related provider(s) (matched on '{synonym_used}') near {name.title()}:\n"
+    lines = [header]
     if n_local > 0 and n_online > 0:
         lines.append("**Local Options:**\n")
 

@@ -18,6 +18,7 @@ from config import CORS_ORIGINS, PORT, RATE_LIMIT
 from models import init_db, SessionLocal, ChatSession, ChatMessage
 from chat import process_chat, get_greeting
 from embeddings import load_embeddings_into_memory
+from email_export import send_conversation_email
 
 logging.basicConfig(
     level=logging.INFO,
@@ -61,6 +62,11 @@ class ChatResponse(BaseModel):
     session_id: str
 
 
+class EmailExportRequest(BaseModel):
+    session_id: str
+    email: str
+
+
 # Startup
 @app.on_event("startup")
 async def startup():
@@ -98,6 +104,37 @@ async def chat(req: ChatRequest, request: Request):
             status_code=500,
             detail="Something went wrong. Please try again.",
         )
+
+
+@app.post("/email-conversation")
+@limiter.limit("3/hour")
+async def email_conversation(req: EmailExportRequest, request: Request):
+    """Email a conversation transcript to the user."""
+    # Basic email validation
+    if not req.email or "@" not in req.email or "." not in req.email:
+        raise HTTPException(status_code=400, detail="Invalid email address.")
+    db = SessionLocal()
+    try:
+        messages = (
+            db.query(ChatMessage)
+            .filter_by(session_id=req.session_id)
+            .order_by(ChatMessage.created_at.asc())
+            .all()
+        )
+        if not messages:
+            raise HTTPException(status_code=404, detail="Conversation not found.")
+        msg_list = [
+            {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat() if m.created_at else None}
+            for m in messages
+        ]
+    finally:
+        db.close()
+    try:
+        send_conversation_email(req.email, msg_list)
+        return {"status": "sent"}
+    except Exception as e:
+        logger.error(f"Email export failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to send email. Please try again.")
 
 
 @app.get("/widget.js")

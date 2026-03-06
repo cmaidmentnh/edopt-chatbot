@@ -264,6 +264,9 @@
     color: #1863DC;
     text-decoration: none;
 }
+.edopt-email-link {
+    cursor: pointer;
+}
 
 /* Mobile responsive */
 @media (max-width: 500px) {
