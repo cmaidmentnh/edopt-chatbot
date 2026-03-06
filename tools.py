@@ -748,6 +748,53 @@ def _handle_search_content(
     return "\n".join(lines)
 
 
+    # SAU number → primary district name mapping
+SAU_NAMES = {
+    1: "Contoocook Valley", 2: "Inter-Lakes Cooperative", 3: "Berlin",
+    4: "Newfound Area", 5: "Oyster River", 6: "Claremont",
+    7: "Colebrook", 8: "Concord", 9: "Conway",
+    10: "Derry Cooperative", 11: "Dover", 12: "Londonderry",
+    13: "Tamworth", 14: "Epping", 15: "Hooksett",
+    16: "Exeter", 17: "Sanborn Regional", 18: "Franklin",
+    19: "Goffstown", 20: "Gorham", 21: "Winnacunnet",
+    23: "Haverhill Cooperative", 24: "Henniker", 25: "Bedford",
+    26: "Merrimack", 27: "Litchfield", 28: "Pelham",
+    29: "Keene", 30: "Laconia", 31: "Newmarket",
+    32: "Plainfield", 33: "Raymond", 34: "Hillsboro-Deering",
+    35: "Bethlehem", 36: "White Mountains Regional", 37: "Manchester",
+    39: "Amherst", 40: "Milford", 41: "Hollis-Brookline",
+    42: "Nashua", 43: "Newport", 44: "Northwood",
+    45: "Moultonborough", 46: "Merrimack Valley", 47: "Jaffrey-Rindge",
+    48: "Plymouth", 49: "Governor Wentworth Regional", 50: "Greenland",
+    51: "Pittsfield", 52: "Portsmouth", 53: "Pembroke",
+    54: "Rochester", 55: "Timberlane Regional", 56: "Somersworth",
+    57: "Salem", 58: "Northumberland", 59: "Winnisquam Regional",
+    60: "Fall Mountain Regional", 61: "Farmington", 62: "Mascoma Valley",
+    63: "Wilton", 64: "Milton", 65: "Kearsarge Regional",
+    66: "Hopkinton", 67: "Bow", 68: "Lincoln-Woodstock",
+    70: "Hanover", 72: "Alton", 73: "Gilford",
+    74: "Barrington", 75: "Grantham", 76: "Lyme",
+    77: "Monroe", 78: "Rivendell Interstate", 79: "Gilmanton",
+    80: "Shaker Regional", 81: "Hudson", 82: "Chester",
+    83: "Fremont", 84: "Littleton", 85: "Sunapee",
+    86: "Barnstead", 87: "Mascenic Regional", 88: "Lebanon",
+    89: "Mason", 90: "Hampton", 92: "Hinsdale",
+    93: "Monadnock Regional", 94: "Winchester", 95: "Windham",
+    99: "Croydon",
+}
+
+
+def _resolve_sau_query(search: str) -> str:
+    """Resolve SAU number references like 'SAU 6' or 'SAU6' to district names."""
+    import re
+    match = re.match(r'^sau\s*#?\s*(\d+)$', search.strip().lower())
+    if match:
+        sau_num = int(match.group(1))
+        if sau_num in SAU_NAMES:
+            return SAU_NAMES[sau_num]
+    return search
+
+
 def _handle_lookup_education_stats(
     district_or_town: str,
     stat_type: str = "all",
@@ -755,6 +802,9 @@ def _handle_lookup_education_stats(
 ) -> str:
     """Look up education statistics for a district, school, or town."""
     search = district_or_town.strip()
+
+    # Resolve SAU number references (e.g., "SAU 6" -> "Claremont")
+    search = _resolve_sau_query(search)
 
     # Detect county queries (e.g., "Sullivan County", "Sullivan")
     county_towns = _detect_county_query(search)
