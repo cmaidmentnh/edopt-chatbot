@@ -161,6 +161,30 @@ async def demo():
         return HTMLResponse(content=f.read())
 
 
+@app.get("/api/session/{session_id}")
+async def get_session_messages(session_id: str):
+    """Return messages for an existing session (used by beta page expand)."""
+    db = SessionLocal()
+    try:
+        messages = (
+            db.query(ChatMessage)
+            .filter_by(session_id=session_id)
+            .order_by(ChatMessage.created_at.asc())
+            .all()
+        )
+        if not messages:
+            raise HTTPException(status_code=404, detail="Session not found.")
+        return {
+            "session_id": session_id,
+            "messages": [
+                {"role": m.role, "content": m.content}
+                for m in messages
+            ],
+        }
+    finally:
+        db.close()
+
+
 @app.get("/beta", response_class=HTMLResponse)
 async def beta():
     with open("templates/beta.html") as f:

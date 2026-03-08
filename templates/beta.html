@@ -383,9 +383,32 @@
 
         async function init() {
             const selfTestMsg = buildSelfTestContext();
+            const params = new URLSearchParams(window.location.search);
+            const existingSession = params.get('session_id');
 
-            // Hide suggestions immediately if self-test results are coming
-            if (selfTestMsg) hideSuggestions();
+            // Hide suggestions if self-test results are coming or resuming session
+            if (selfTestMsg || existingSession) hideSuggestions();
+
+            if (existingSession) {
+                // Resuming from widget expand — load existing conversation
+                showTyping();
+                try {
+                    const resp = await fetch(API_BASE + '/api/session/' + encodeURIComponent(existingSession));
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        sessionId = data.session_id;
+                        hideTyping();
+                        for (const msg of data.messages) {
+                            addMessage(msg.content, msg.role);
+                        }
+                        // Clean URL so refresh doesn't re-fetch
+                        window.history.replaceState({}, '', '/beta');
+                        return;
+                    }
+                } catch (e) {}
+                hideTyping();
+                // Fall through to normal greeting if session load fails
+            }
 
             showTyping();
             try {
