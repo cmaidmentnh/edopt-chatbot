@@ -537,11 +537,16 @@ def _handle_search_legislation(
                     sponsor_lines.append(f"  - {s.first_name} {s.last_name} ({party}, {body} Dist. {s.district}){role}")
 
                 status_desc = _describe_status(bill.general_status)
+                updated_str = ""
+                if bill.ingested_at:
+                    updated_str = bill.ingested_at.strftime("%B %d, %Y at %I:%M %p UTC")
                 lines = [
                     f"**{bill.bill_number}**: {bill.title}",
                     f"Session: {bill.session_year}",
                     f"Status: {status_desc}",
+                    f"Data last updated: {updated_str}" if updated_str else "",
                 ]
+                lines = [l for l in lines if l]
                 if bill.committee_name:
                     lines.append(f"Committee: {bill.committee_name}")
                 if bill.next_hearing_date:
@@ -633,6 +638,10 @@ def _handle_search_legislation(
             for b in all_bills[:15]:
                 status = _describe_status(b.general_status)
                 lines.append(f"- **{b.bill_number}**: {b.title} [{status}]")
+            # Show freshness timestamp from most recent ingestion
+            latest_update = max((b.ingested_at for b in all_bills if b.ingested_at), default=None)
+            if latest_update:
+                lines.append(f"\nData last updated: {latest_update.strftime('%B %d, %Y at %I:%M %p UTC')}")
             lines.append(f"\nNOTE: These are the ONLY bills found matching '{search_text}'. Do NOT describe any bill not listed above. If the user asked about a specific bill that is not in these results, say you could not find it.")
             return "\n".join(lines)
 
