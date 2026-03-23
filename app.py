@@ -15,7 +15,7 @@ from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
 from config import CORS_ORIGINS, PORT, RATE_LIMIT
-from models import init_db, SessionLocal, ChatSession, ChatMessage
+from models import init_db, SessionLocal, ChatSession, ChatMessage, SelfTestResult
 from chat import process_chat, get_greeting
 from embeddings import load_embeddings_into_memory
 from email_export import send_conversation_email
@@ -195,6 +195,36 @@ async def beta():
 async def self_test():
     with open("templates/self_test.html") as f:
         return HTMLResponse(content=f.read())
+
+
+class SelfTestSubmission(BaseModel):
+    persona: str
+    direction: str
+    activation: int
+    bottleneck: str
+    affordability: str = "none"
+    triggers: str = ""
+    support_prefs: str = ""
+
+
+@app.post("/api/self-test-results")
+async def save_self_test_result(data: SelfTestSubmission):
+    db = SessionLocal()
+    try:
+        result = SelfTestResult(
+            persona=data.persona,
+            direction=data.direction,
+            activation=data.activation,
+            bottleneck=data.bottleneck,
+            affordability=data.affordability,
+            triggers=data.triggers,
+            support_prefs=data.support_prefs,
+        )
+        db.add(result)
+        db.commit()
+        return {"status": "ok"}
+    finally:
+        db.close()
 
 
 @app.get("/conversations", response_class=HTMLResponse)

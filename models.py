@@ -139,6 +139,20 @@ class EducationStatistic(Base):
     ingested_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class SelfTestResult(Base):
+    __tablename__ = "self_test_results"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    persona = Column(String)           # supplementer, switcher, customizer
+    direction = Column(String)         # academics, personalization, whole_child
+    activation = Column(Integer)       # readiness - friction score
+    bottleneck = Column(String)        # awareness, fit, affordability, goals
+    affordability = Column(String)     # actual, perceived, process, none
+    triggers = Column(String)          # comma-separated trigger values
+    support_prefs = Column(String)     # comma-separated Q8 values
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class ContentEmbedding(Base):
     __tablename__ = "content_embeddings"
 
