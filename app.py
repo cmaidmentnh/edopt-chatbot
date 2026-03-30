@@ -227,6 +227,34 @@ async def save_self_test_result(data: SelfTestSubmission):
         db.close()
 
 
+@app.get("/self-test-results", response_class=HTMLResponse)
+async def self_test_results_page():
+    with open("templates/self_test_admin.html") as f:
+        return HTMLResponse(content=f.read())
+
+
+@app.get("/api/self-test-results/all")
+async def get_all_self_test_results():
+    db = SessionLocal()
+    try:
+        rows = db.query(SelfTestResult).order_by(SelfTestResult.created_at.desc()).all()
+        return {"results": [
+            {
+                "persona": r.persona,
+                "direction": r.direction,
+                "activation": r.activation,
+                "bottleneck": r.bottleneck,
+                "affordability": r.affordability,
+                "triggers": r.triggers,
+                "support_prefs": r.support_prefs,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in rows
+        ]}
+    finally:
+        db.close()
+
+
 @app.get("/conversations", response_class=HTMLResponse)
 async def conversations_page():
     with open("templates/conversations.html") as f:

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Test Results - EdOpt Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f4f8;
+            min-height: 100vh;
+        }
+        .header {
+            background: #1863DC;
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header p { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+        .container { max-width: 1100px; margin: 24px auto; padding: 0 16px; }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .card .number { font-size: 28px; font-weight: 700; color: #1863DC; }
+        .card .label { font-size: 13px; color: #666; margin-top: 4px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        th {
+            background: #1863DC;
+            color: white;
+            padding: 10px 12px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f8fafc; }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-supplementer { background: #dbeafe; color: #1e40af; }
+        .badge-switcher { background: #fef3c7; color: #92400e; }
+        .badge-customizer { background: #d1fae5; color: #065f46; }
+
+        .empty { text-align: center; padding: 48px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Self-Test Results</h1>
+            <p>Education Options Self-Test submissions</p>
+        </div>
+    </div>
+    <div class="container">
+        <div class="summary-cards" id="summary"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>Persona</th>
+                    <th>Direction</th>
+                    <th>Activation</th>
+                    <th>Bottleneck</th>
+                    <th>Affordability</th>
+                    <th>Triggers</th>
+                    <th>Support Prefs</th>
+                </tr>
+            </thead>
+            <tbody id="results"></tbody>
+        </table>
+    </div>
+
+    <script>
+        fetch('/api/self-test-results/all')
+            .then(r => r.json())
+            .then(data => {
+                const results = data.results;
+                const tbody = document.getElementById('results');
+
+                if (results.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty">No results yet</td></tr>';
+                    return;
+                }
+
+                // Summary cards
+                const total = results.length;
+                const personas = {};
+                results.forEach(r => {
+                    personas[r.persona] = (personas[r.persona] || 0) + 1;
+                });
+                const summaryHtml = `
+                    <div class="card"><div class="number">${total}</div><div class="label">Total</div></div>
+                    <div class="card"><div class="number">${personas['supplementer'] || 0}</div><div class="label">Supplementers</div></div>
+                    <div class="card"><div class="number">${personas['switcher'] || 0}</div><div class="label">Switchers</div></div>
+                    <div class="card"><div class="number">${personas['customizer'] || 0}</div><div class="label">Customizers</div></div>
+                `;
+                document.getElementById('summary').innerHTML = summaryHtml;
+
+                // Table rows
+                results.forEach((r, i) => {
+                    const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', {
+                        month: 'short', day: 'numeric', year: 'numeric',
+                        hour: 'numeric', minute: '2-digit'
+                    }) : '—';
+                    const badgeClass = 'badge-' + (r.persona || '').toLowerCase();
+                    const row = `<tr>
+                        <td>${results.length - i}</td>
+                        <td>${date}</td>
+                        <td><span class="badge ${badgeClass}">${r.persona || '—'}</span></td>
+                        <td>${r.direction || '—'}</td>
+                        <td>${r.activation}</td>
+                        <td>${r.bottleneck || '—'}</td>
+                        <td>${r.affordability || '—'}</td>
+                        <td>${(r.triggers || '—').replace(/,/g, ', ')}</td>
+                        <td>${(r.support_prefs || '—').replace(/,/g, ', ')}</td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+            });
+    </script>
+</body>
+</html>
