@@ -150,6 +150,7 @@ class SelfTestResult(Base):
     affordability = Column(String)     # actual, perceived, process, none
     triggers = Column(String)          # comma-separated trigger values
     support_prefs = Column(String)     # comma-separated Q8 values
+    answers_json = Column(Text)        # raw Q1-Q8 answers as JSON
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 

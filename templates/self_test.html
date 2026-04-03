@@ -643,6 +643,7 @@
             const selectedOpts = container.querySelectorAll('.option.selected');
             answers[qKey] = Array.from(selectedOpts).map(o => ({
                 value: o.dataset.value,
+                label: o.querySelector('.label').textContent.trim(),
                 points: parseInt(o.dataset.points || '0'),
                 theme: o.dataset.theme || null,
                 afford: o.dataset.afford || null,
@@ -855,6 +856,16 @@
                     affordability: affordTypes[0] || 'none',
                     triggers: triggers,
                     support_prefs: q8Prefs,
+                    answers: {
+                        q1: (answers.q1 || []).map(a => a.label),
+                        q2: (answers.q2 || []).map(a => a.label),
+                        q3: (answers.q3 || []).map(a => a.label),
+                        q4: (answers.q4 || []).map(a => a.label),
+                        q5: (answers.q5 || []).map(a => a.label),
+                        q6: (answers.q6 || []).map(a => a.label),
+                        q7: (answers.q7 || []).map(a => a.label),
+                        q8: (answers.q8 || []).map(a => a.label),
+                    },
                 }),
             }).catch(() => {});  // fire-and-forget, don't block UX
 

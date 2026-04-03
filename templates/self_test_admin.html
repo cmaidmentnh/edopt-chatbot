@@ -60,9 +60,51 @@
             padding: 10px 12px;
             border-bottom: 1px solid #eee;
             font-size: 13px;
+            vertical-align: top;
         }
         tr:last-child td { border-bottom: none; }
-        tr:hover td { background: #f8fafc; }
+        tr.summary-row { cursor: pointer; }
+        tr.summary-row:hover td { background: #f8fafc; }
+        tr.detail-row td {
+            background: #f8fafc;
+            padding: 0;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        tr.detail-row.hidden { display: none; }
+
+        .detail-content {
+            padding: 12px 16px 16px;
+        }
+        .detail-content .q-item {
+            margin-bottom: 10px;
+        }
+        .detail-content .q-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 12px;
+            margin-bottom: 2px;
+        }
+        .detail-content .q-answers {
+            font-size: 13px;
+            color: #1a1a2e;
+        }
+        .detail-content .q-answers li {
+            margin-left: 16px;
+            margin-bottom: 1px;
+        }
+        .no-answers {
+            color: #94a3b8;
+            font-style: italic;
+            font-size: 12px;
+        }
+
+        .expand-icon {
+            display: inline-block;
+            width: 16px;
+            transition: transform 0.15s;
+            color: #94a3b8;
+        }
+        .expand-icon.open { transform: rotate(90deg); }
 
         .badge {
             display: inline-block;
@@ -90,6 +132,7 @@
         <table>
             <thead>
                 <tr>
+                    <th></th>
                     <th>#</th>
                     <th>Date</th>
                     <th>Persona</th>
@@ -97,8 +140,6 @@
                     <th>Activation</th>
                     <th>Bottleneck</th>
                     <th>Affordability</th>
-                    <th>Triggers</th>
-                    <th>Support Prefs</th>
                 </tr>
             </thead>
             <tbody id="results"></tbody>
@@ -106,6 +147,24 @@
     </div>
 
     <script>
+        const QUESTIONS = {
+            q1: "1. What's pushing you to explore?",
+            q2: "2. What kind of change are you looking for?",
+            q3: "3. What matters most for your child?",
+            q4: "4. If you could go further, what would matter most?",
+            q5: "5. What's holding you back?",
+            q6: "6. Where do you get stuck?",
+            q7: "7. How does cost affect your decision?",
+            q8: "8. What would help you most right now?",
+        };
+
+        function toggleDetail(id) {
+            const row = document.getElementById('detail-' + id);
+            const icon = document.getElementById('icon-' + id);
+            row.classList.toggle('hidden');
+            icon.classList.toggle('open');
+        }
+
         fetch('/api/self-test-results/all')
             .then(r => r.json())
             .then(data => {
@@ -113,7 +172,7 @@
                 const tbody = document.getElementById('results');
 
                 if (results.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="empty">No results yet</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty">No results yet</td></tr>';
                     return;
                 }
 
@@ -123,33 +182,66 @@
                 results.forEach(r => {
                     personas[r.persona] = (personas[r.persona] || 0) + 1;
                 });
-                const summaryHtml = `
+                document.getElementById('summary').innerHTML = `
                     <div class="card"><div class="number">${total}</div><div class="label">Total</div></div>
                     <div class="card"><div class="number">${personas['supplementer'] || 0}</div><div class="label">Supplementers</div></div>
                     <div class="card"><div class="number">${personas['switcher'] || 0}</div><div class="label">Switchers</div></div>
                     <div class="card"><div class="number">${personas['customizer'] || 0}</div><div class="label">Customizers</div></div>
                 `;
-                document.getElementById('summary').innerHTML = summaryHtml;
 
                 // Table rows
                 results.forEach((r, i) => {
+                    const num = results.length - i;
                     const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', {
                         month: 'short', day: 'numeric', year: 'numeric',
                         hour: 'numeric', minute: '2-digit'
-                    }) : '—';
+                    }) : '';
                     const badgeClass = 'badge-' + (r.persona || '').toLowerCase();
-                    const row = `<tr>
-                        <td>${results.length - i}</td>
+
+                    // Summary row
+                    const summaryRow = document.createElement('tr');
+                    summaryRow.className = 'summary-row';
+                    summaryRow.onclick = () => toggleDetail(i);
+                    summaryRow.innerHTML = `
+                        <td><span class="expand-icon" id="icon-${i}">&#9654;</span></td>
+                        <td>${num}</td>
                         <td>${date}</td>
-                        <td><span class="badge ${badgeClass}">${r.persona || '—'}</span></td>
-                        <td>${r.direction || '—'}</td>
+                        <td><span class="badge ${badgeClass}">${r.persona || ''}</span></td>
+                        <td>${r.direction || ''}</td>
                         <td>${r.activation}</td>
-                        <td>${r.bottleneck || '—'}</td>
-                        <td>${r.affordability || '—'}</td>
-                        <td>${(r.triggers || '—').replace(/,/g, ', ')}</td>
-                        <td>${(r.support_prefs || '—').replace(/,/g, ', ')}</td>
-                    </tr>`;
-                    tbody.innerHTML += row;
+                        <td>${r.bottleneck || ''}</td>
+                        <td>${r.affordability || ''}</td>
+                    `;
+                    tbody.appendChild(summaryRow);
+
+                    // Detail row
+                    const detailRow = document.createElement('tr');
+                    detailRow.className = 'detail-row hidden';
+                    detailRow.id = 'detail-' + i;
+
+                    let detailHtml = '<td colspan="8"><div class="detail-content">';
+
+                    if (r.answers) {
+                        for (const [qKey, qLabel] of Object.entries(QUESTIONS)) {
+                            const ans = r.answers[qKey];
+                            detailHtml += `<div class="q-item"><div class="q-label">${qLabel}</div>`;
+                            if (ans && ans.length > 0) {
+                                detailHtml += '<ul class="q-answers">' + ans.map(a => `<li>${a}</li>`).join('') + '</ul>';
+                            } else {
+                                detailHtml += '<div class="q-answers" style="color:#94a3b8;">No answer</div>';
+                            }
+                            detailHtml += '</div>';
+                        }
+                    } else {
+                        // Older results without per-question data
+                        detailHtml += '<div class="no-answers">Per-question answers not available (submitted before detailed tracking was added)</div>';
+                        if (r.triggers) detailHtml += `<div class="q-item"><div class="q-label">Triggers</div><div class="q-answers">${r.triggers}</div></div>`;
+                        if (r.support_prefs) detailHtml += `<div class="q-item"><div class="q-label">Support Preferences</div><div class="q-answers">${r.support_prefs.replace(/,/g, ', ')}</div></div>`;
+                    }
+
+                    detailHtml += '</div></td>';
+                    detailRow.innerHTML = detailHtml;
+                    tbody.appendChild(detailRow);
                 });
             });
     </script>

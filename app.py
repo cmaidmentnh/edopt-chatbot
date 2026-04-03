@@ -205,10 +205,12 @@ class SelfTestSubmission(BaseModel):
     affordability: str = "none"
     triggers: str = ""
     support_prefs: str = ""
+    answers: dict = None
 
 
 @app.post("/api/self-test-results")
 async def save_self_test_result(data: SelfTestSubmission):
+    import json
     db = SessionLocal()
     try:
         result = SelfTestResult(
@@ -219,6 +221,7 @@ async def save_self_test_result(data: SelfTestSubmission):
             affordability=data.affordability,
             triggers=data.triggers,
             support_prefs=data.support_prefs,
+            answers_json=json.dumps(data.answers) if data.answers else None,
         )
         db.add(result)
         db.commit()
@@ -235,6 +238,7 @@ async def self_test_results_page():
 
 @app.get("/api/self-test-results/all")
 async def get_all_self_test_results():
+    import json
     db = SessionLocal()
     try:
         rows = db.query(SelfTestResult).order_by(SelfTestResult.created_at.desc()).all()
@@ -247,6 +251,7 @@ async def get_all_self_test_results():
                 "affordability": r.affordability,
                 "triggers": r.triggers,
                 "support_prefs": r.support_prefs,
+                "answers": json.loads(r.answers_json) if r.answers_json else None,
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
             for r in rows
