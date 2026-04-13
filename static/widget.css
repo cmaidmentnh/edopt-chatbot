@@ -3,27 +3,55 @@
     position: fixed;
     bottom: 24px;
     right: 24px;
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    background: #1863DC;
-    border: none;
+    height: 64px;
+    padding: 6px 24px 6px 8px;
+    /* Gradient border via layered backgrounds: white fill (padding-box) + gradient (border-box) */
+    background:
+        linear-gradient(#fff, #fff) padding-box,
+        linear-gradient(90deg, #4ECDC4 0%, #E63E8A 50%, #F79B2C 100%) border-box;
+    border: 3px solid transparent;
+    border-radius: 999px;
     cursor: pointer;
-    box-shadow: 0 4px 16px rgba(24, 99, 220, 0.4);
-    display: flex;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 12px;
     z-index: 99998;
-    transition: transform 0.2s, box-shadow 0.2s;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
 }
 .edopt-chat-button:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 20px rgba(24, 99, 220, 0.5);
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
 }
-.edopt-chat-button svg {
-    width: 28px;
-    height: 28px;
-    fill: #fff;
+.edopt-chat-button-hidden {
+    opacity: 0;
+    pointer-events: none;
+    transform: scale(0.9);
+}
+.edopt-chat-button-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.edopt-chat-button-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+.edopt-chat-button-label {
+    color: #1a1a1a;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
 }
 
 /* Chat Panel */
@@ -280,5 +308,15 @@
     .edopt-chat-button {
         bottom: 16px;
         right: 16px;
+        height: 56px;
+        padding: 5px 18px 5px 6px;
+        gap: 10px;
+    }
+    .edopt-chat-button-logo {
+        width: 40px;
+        height: 40px;
+    }
+    .edopt-chat-button-label {
+        font-size: 15px;
     }
 }

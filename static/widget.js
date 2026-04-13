@@ -136,13 +136,16 @@
 
   // Build DOM
   function buildWidget() {
-    // Floating button
+    // Floating button — pill with EdOpt lifesaver logo and "Need Assistance?" label
     const btn = document.createElement("button");
     btn.className = "edopt-chat-button";
     btn.setAttribute("aria-label", "Open EdOpt chat");
-    btn.innerHTML = `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
-    </svg>`;
+    btn.innerHTML = `
+      <span class="edopt-chat-button-logo">
+        <img src="${API_BASE}/static/edopt-logo.png" alt="" />
+      </span>
+      <span class="edopt-chat-button-label">Need Assistance?</span>
+    `;
     btn.onclick = togglePanel;
 
     // Chat panel
@@ -250,14 +253,17 @@
   function togglePanel() {
     isOpen = !isOpen;
     const panel = document.getElementById("edopt-chat-panel");
+    const btn = document.querySelector(".edopt-chat-button");
     if (isOpen) {
       panel.classList.add("edopt-open");
+      if (btn) btn.classList.add("edopt-chat-button-hidden");
       if (!hasGreeted) {
         fetchGreeting();
       }
       document.getElementById("edopt-input").focus();
     } else {
       panel.classList.remove("edopt-open");
+      if (btn) btn.classList.remove("edopt-chat-button-hidden");
     }
   }
 
