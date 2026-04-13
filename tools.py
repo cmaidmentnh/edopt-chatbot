@@ -372,6 +372,8 @@ def _handle_search_providers(
             parts.append(f"Phone: {p.contact_phone}")
         if p.contact_email:
             parts.append(f"Email: {p.contact_email}")
+        if p.contact_page:
+            parts.append(f"Contact page: {p.contact_page}")
         if p.online_only:
             parts.append("Available online statewide")
         if p.description:

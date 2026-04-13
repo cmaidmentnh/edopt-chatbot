@@ -173,6 +173,7 @@ def fetch_all_providers(styles_dict: dict) -> list:
             "contact_name": acf.get("contact_name", ""),
             "contact_email": acf.get("contact_email", ""),
             "contact_phone": acf.get("contact_phone", ""),
+            "contact_page": acf.get("contact_page", "") or "",
             "online_only": is_online,
             "date_published": item.get("date", ""),
             "date_modified": item.get("modified", ""),

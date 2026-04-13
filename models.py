@@ -37,6 +37,7 @@ class Provider(Base):
     contact_name = Column(String)
     contact_email = Column(String)
     contact_phone = Column(String)
+    contact_page = Column(String)
     online_only = Column(Boolean, default=False)
     date_published = Column(String)
     date_modified = Column(String)
