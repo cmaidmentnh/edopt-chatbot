@@ -998,23 +998,32 @@ def _handle_statewide_education_stats(stat_type: str = "all", year: str = None) 
             return total, len(rows)
 
         def state_totals_by_grade(yr_key):
-            """Pull the state_totals rows (one per grade, district_name='public: X')
-            and return a dict of grade_label -> enrollment for yr_key (e.g. '25 - 26')."""
+            """Pull state_totals rows (one per grade, district_name='public: X') and
+            return (grade_dict, public_total). iPlatform has duplicate rows from
+            multiple source sheets, so we keep the FIRST non-null value per grade
+            (the main public-schools sheet) and use the 'Total' row directly."""
             rows = db.query(EducationStatistic).filter(
                 EducationStatistic.stat_type == "state_totals",
                 EducationStatistic.district_name.like("public:%"),
             ).all()
-            out = {}
+            grades = {}
+            public_total = None
             for r in rows:
                 try:
                     d = json.loads(r.data_json)
                     v = d.get(yr_key)
-                    if isinstance(v, (int, float)):
-                        grade = (r.district_name or "").replace("public:", "").strip()
-                        out[grade] = v
                 except Exception:
-                    pass
-            return out
+                    continue
+                if not isinstance(v, (int, float)):
+                    continue
+                label = (r.district_name or "").replace("public:", "").strip()
+                if label.lower() == "total":
+                    if public_total is None:
+                        public_total = v
+                    continue
+                if label not in grades:
+                    grades[label] = v
+            return grades, public_total
 
         # Convert '2025-26' to the key used inside state_totals data (e.g. '25 - 26')
         def year_trend_key(yr):
@@ -1033,21 +1042,22 @@ def _handle_statewide_education_stats(stat_type: str = "all", year: str = None) 
         # Public K-12 enrollment (use state_totals — pre-aggregated, no double count)
         if want in ("all", "state_totals", "district_enrollment", "public_enrollment"):
             key = year_trend_key(target_year)
-            grades = state_totals_by_grade(key) if key else {}
-            if grades:
-                pub_total = sum(v for g, v in grades.items() if g.lower() != "preschool")
+            grades, pub_total = state_totals_by_grade(key) if key else ({}, None)
+            if pub_total is not None or grades:
                 pre = grades.get("Preschool", 0)
+                # Fall back to summing K-12 grades if the explicit Total row is missing
+                if pub_total is None:
+                    pub_total = grades.get("Kindergarten", 0) + sum(
+                        grades.get(f"Grade {i}", 0) for i in range(1, 13)
+                    )
                 lines.append(
                     f"- **Public school enrollment (K–12):** {pub_total:,} students."
                     + (f" Plus {pre:,} public preschool." if pre else "")
                 )
-                # Brief grade distribution (K, elementary 1-5, middle 6-8, high 9-12)
-                def bucket(prefix_list):
-                    return sum(v for g, v in grades.items() if any(g == p for p in prefix_list))
                 k = grades.get("Kindergarten", 0)
-                elem = bucket([f"Grade {i}" for i in range(1, 6)])
-                mid = bucket([f"Grade {i}" for i in range(6, 9)])
-                high = bucket([f"Grade {i}" for i in range(9, 13)])
+                elem = sum(grades.get(f"Grade {i}", 0) for i in range(1, 6))
+                mid = sum(grades.get(f"Grade {i}", 0) for i in range(6, 9))
+                high = sum(grades.get(f"Grade {i}", 0) for i in range(9, 13))
                 if any((k, elem, mid, high)):
                     lines.append(
                         f"  Breakdown — K: {k:,} · Elem (1–5): {elem:,} · Middle (6–8): {mid:,} · High (9–12): {high:,}"
@@ -1093,8 +1103,11 @@ def _handle_statewide_education_stats(stat_type: str = "all", year: str = None) 
         # If "all" summary, add homeschool percentage as a computed convenience
         if want == "all":
             key = year_trend_key(target_year)
-            grades = state_totals_by_grade(key) if key else {}
-            pub_total = sum(v for g, v in grades.items() if g.lower() != "preschool")
+            grades, pub_total = state_totals_by_grade(key) if key else ({}, None)
+            if pub_total is None:
+                pub_total = grades.get("Kindergarten", 0) + sum(
+                    grades.get(f"Grade {i}", 0) for i in range(1, 13)
+                )
             he_total, _ = sum_total("home_education", target_year)
             np_total, _ = sum_total("nonpublic_enrollment", target_year)
             denom = pub_total + he_total + np_total
