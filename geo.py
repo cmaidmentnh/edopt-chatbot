@@ -191,6 +191,22 @@ NH_COUNTIES = {
 }
 
 
+# Terms that mean "all of New Hampshire" rather than a specific town or county.
+NH_STATEWIDE_SYNONYMS = {
+    "new hampshire", "nh", "state of new hampshire", "state wide", "statewide",
+    "all of nh", "all of new hampshire", "all nh", "throughout nh",
+    "state of nh", "the state", "the whole state", "across the state",
+    "anywhere in nh", "anywhere in new hampshire", "entire state",
+}
+
+
+def is_statewide_query(text: str) -> bool:
+    """Return True if the location text refers to all of NH, not a specific town/county."""
+    if not text:
+        return False
+    return text.strip().lower() in NH_STATEWIDE_SYNONYMS
+
+
 def normalize_location(text: str):
     """
     Fuzzy-match a location string to a known NH town or county.

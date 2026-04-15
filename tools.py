@@ -8,7 +8,7 @@ from geopy.distance import geodesic
 from fuzzywuzzy import process as fuzz_process
 
 from models import SessionLocal, Provider, RSASection, Legislation, LegislationSponsor, ContentPage, EducationStatistic
-from geo import normalize_location, NH_TOWNS, NH_COUNTIES
+from geo import normalize_location, NH_TOWNS, NH_COUNTIES, is_statewide_query
 from embeddings import search as embedding_search
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,11 @@ TOOLS = [
             "properties": {
                 "location": {
                     "type": "string",
-                    "description": "NH town, city, county, or region name (e.g., 'Concord', 'Hillsborough County', 'Upper Valley', 'Seacoast')",
+                    "description": (
+                        "NH town, city, county, or region name (e.g., 'Concord', 'Hillsborough County', 'Upper Valley', 'Seacoast'). "
+                        "Pass 'New Hampshire' or 'NH' for a statewide directory overview (total provider count + online/statewide options) "
+                        "when the user asks aggregate questions like 'how many providers are there' or 'what's on your list'."
+                    ),
                 },
                 "grade": {
                     "type": "string",
@@ -142,7 +146,13 @@ TOOLS = [
             "properties": {
                 "district_or_town": {
                     "type": "string",
-                    "description": "District name, school name, or town (e.g., 'Concord', 'Manchester', 'Laconia')",
+                    "description": (
+                        "District name, school name, or town (e.g., 'Concord', 'Manchester', 'Laconia'). "
+                        "Pass 'New Hampshire' or 'NH' for statewide aggregates — public K-12 enrollment by grade, "
+                        "home-education total, nonpublic enrollment, provider directory count, and computed "
+                        "percentages (e.g. share of NH kids in home education). Use this whenever the user asks "
+                        "a statewide or percentage question."
+                    ),
                 },
                 "stat_type": {
                     "type": "string",
@@ -214,11 +224,17 @@ def _handle_search_providers(
     keyword: str = None,
 ) -> str:
     """Search for education providers near a location."""
+    # Statewide queries ("NH", "New Hampshire", "statewide", etc.) return the
+    # full directory count plus online/statewide providers.
+    if is_statewide_query(location):
+        return _handle_statewide_provider_query(grade=grade, style=style, keyword=keyword)
+
     name, coords, is_county = normalize_location(location)
     if coords is None:
         return (
             f"Could not find '{location}' in New Hampshire. "
-            "Please specify a valid NH town, city, or county name."
+            "Please specify a valid NH town, city, or county name — "
+            "or say 'New Hampshire' / 'statewide' for a directory overview."
         )
 
     grade_num = _parse_grade_input(grade)
@@ -384,6 +400,87 @@ def _handle_search_providers(
         for part in parts:
             lines.append(f"  - {part}")
 
+    return "\n".join(lines)
+
+
+def _handle_statewide_provider_query(
+    grade: str = None,
+    style: str = "any",
+    keyword: str = None,
+) -> str:
+    """Answer 'what's on your list / how many providers' at the NH level.
+
+    Returns total count, style breakdown, and a sample of online/statewide providers
+    that any family in NH can access. For narrower queries, ask for a town.
+    """
+    grade_num = _parse_grade_input(grade)
+    keyword_lower = keyword.strip().lower() if keyword else None
+
+    db = SessionLocal()
+    try:
+        providers = db.query(Provider).all()
+    finally:
+        db.close()
+
+    filtered = []
+    for p in providers:
+        if grade_num is not None and p.grade_start is not None and p.grade_end is not None:
+            if not (p.grade_start <= grade_num <= p.grade_end):
+                continue
+        if style and style != "any" and p.education_style and p.education_style != style:
+            continue
+        if keyword_lower:
+            searchable = " ".join(filter(None, [p.title, p.description, p.styles_raw])).lower()
+            if not all(w in searchable for w in keyword_lower.split()):
+                continue
+        filtered.append(p)
+
+    total = len(filtered)
+    style_counts = {}
+    for p in filtered:
+        s = (p.education_style or "other").lower()
+        style_counts[s] = style_counts.get(s, 0) + 1
+    online = [p for p in filtered if p.online_only]
+    online.sort(key=lambda p: (p.title or "").lower())
+
+    filters_note = []
+    if grade:
+        filters_note.append(f"grade {grade}")
+    if style and style != "any":
+        filters_note.append(f"{style} style")
+    if keyword:
+        filters_note.append(f"keyword '{keyword}'")
+    filter_suffix = f" matching {', '.join(filters_note)}" if filters_note else ""
+
+    lines = [
+        f"**EdOpt.org directory — New Hampshire overview{filter_suffix}:**\n",
+        f"**{total:,} total providers** in the directory.",
+    ]
+    if style_counts and not (style and style != "any"):
+        breakdown = ", ".join(
+            f"{c:,} {s}" for s, c in sorted(style_counts.items(), key=lambda x: -x[1])
+        )
+        lines.append(f"By type: {breakdown}.")
+    lines.append("")
+
+    if online:
+        lines.append(f"**{len(online)} online/statewide provider(s)** available to any NH family:\n")
+        for p in online[:15]:
+            link = f"[{p.title}]({p.url})" if p.url else f"**{p.title}**"
+            if p.website and p.website != p.url:
+                link += f" | [Website]({p.website})"
+            lines.append(f"- {link}")
+            if p.description:
+                desc = (p.description[:160] + "...") if len(p.description) > 160 else p.description
+                lines.append(f"  - {desc}")
+        if len(online) > 15:
+            lines.append(f"- ...and {len(online) - 15} more online options.")
+        lines.append("")
+
+    lines.append(
+        "To see *local* options (brick-and-mortar schools, tutoring, enrichment near you), "
+        "tell me your town or county and I'll search within a radius."
+    )
     return "\n".join(lines)
 
 
@@ -814,6 +911,10 @@ def _handle_lookup_education_stats(
     """Look up education statistics for a district, school, or town."""
     search = district_or_town.strip()
 
+    # Statewide aggregates: "New Hampshire", "NH", "statewide", etc.
+    if is_statewide_query(search):
+        return _handle_statewide_education_stats(stat_type=stat_type, year=year)
+
     # Resolve SAU number references (e.g., "SAU 6" -> "Claremont")
     search = _resolve_sau_query(search)
 
@@ -864,6 +965,148 @@ def _handle_lookup_education_stats(
             return f"No education statistics found for '{district_or_town}'. Try a different district, school, or town name."
 
         return _format_education_stats(results, search)
+    finally:
+        db.close()
+
+
+def _handle_statewide_education_stats(stat_type: str = "all", year: str = None) -> str:
+    """Aggregate education statistics across all of New Hampshire.
+
+    Uses the pre-aggregated state_totals rows where available (by grade, 10-year
+    trend), sums district-level rows for per-district types, and aggregates town
+    rows for town_enrollment. Returns a readable summary.
+    """
+    db = SessionLocal()
+    try:
+        default_year = "2025-26"
+        target_year = year or default_year
+        lines = [f"**New Hampshire statewide education statistics** (school year {target_year}):\n"]
+
+        # Helpers
+        def sum_total(stat, yr):
+            rows = db.query(EducationStatistic).filter_by(
+                stat_type=stat, school_year=yr
+            ).all()
+            total = 0
+            for r in rows:
+                try:
+                    v = json.loads(r.data_json).get("total")
+                    if isinstance(v, (int, float)):
+                        total += v
+                except Exception:
+                    pass
+            return total, len(rows)
+
+        def state_totals_by_grade(yr_key):
+            """Pull the state_totals rows (one per grade, district_name='public: X')
+            and return a dict of grade_label -> enrollment for yr_key (e.g. '25 - 26')."""
+            rows = db.query(EducationStatistic).filter(
+                EducationStatistic.stat_type == "state_totals",
+                EducationStatistic.district_name.like("public:%"),
+            ).all()
+            out = {}
+            for r in rows:
+                try:
+                    d = json.loads(r.data_json)
+                    v = d.get(yr_key)
+                    if isinstance(v, (int, float)):
+                        grade = (r.district_name or "").replace("public:", "").strip()
+                        out[grade] = v
+                except Exception:
+                    pass
+            return out
+
+        # Convert '2025-26' to the key used inside state_totals data (e.g. '25 - 26')
+        def year_trend_key(yr):
+            if yr and "-" in yr and len(yr) >= 7:
+                left, right = yr.split("-")
+                return f"{left[-2:]} - {right[-2:]}"
+            return None
+
+        want = stat_type or "all"
+
+        # Directory: provider count (useful for "how many options on the list?")
+        if want in ("all", "providers", "directory"):
+            ptotal = db.query(Provider).count()
+            lines.append(f"- **EdOpt.org provider directory:** {ptotal:,} providers statewide.")
+
+        # Public K-12 enrollment (use state_totals — pre-aggregated, no double count)
+        if want in ("all", "state_totals", "district_enrollment", "public_enrollment"):
+            key = year_trend_key(target_year)
+            grades = state_totals_by_grade(key) if key else {}
+            if grades:
+                pub_total = sum(v for g, v in grades.items() if g.lower() != "preschool")
+                pre = grades.get("Preschool", 0)
+                lines.append(
+                    f"- **Public school enrollment (K–12):** {pub_total:,} students."
+                    + (f" Plus {pre:,} public preschool." if pre else "")
+                )
+                # Brief grade distribution (K, elementary 1-5, middle 6-8, high 9-12)
+                def bucket(prefix_list):
+                    return sum(v for g, v in grades.items() if any(g == p for p in prefix_list))
+                k = grades.get("Kindergarten", 0)
+                elem = bucket([f"Grade {i}" for i in range(1, 6)])
+                mid = bucket([f"Grade {i}" for i in range(6, 9)])
+                high = bucket([f"Grade {i}" for i in range(9, 13)])
+                if any((k, elem, mid, high)):
+                    lines.append(
+                        f"  Breakdown — K: {k:,} · Elem (1–5): {elem:,} · Middle (6–8): {mid:,} · High (9–12): {high:,}"
+                    )
+
+        # Home education
+        if want in ("all", "home_education"):
+            he_total, he_rows = sum_total("home_education", target_year)
+            lines.append(
+                f"- **Home-educated students (non-EFA, reported under RSA 193-A):** {he_total:,} "
+                f"({he_rows} reporting districts)."
+            )
+            lines.append(
+                "  Note: this counts students whose families file home-education notification "
+                "with their local district. EFA students are reported separately to CSFNH."
+            )
+
+        # Nonpublic enrollment
+        if want in ("all", "nonpublic_enrollment"):
+            np_total, np_rows = sum_total("nonpublic_enrollment", target_year)
+            lines.append(f"- **Nonpublic school enrollment:** {np_total:,} students ({np_rows} schools reporting).")
+
+        # If the user asked for a specific stat_type that's not covered above, fall back
+        if want not in (
+            "all", "providers", "directory",
+            "state_totals", "district_enrollment", "public_enrollment",
+            "home_education", "nonpublic_enrollment",
+        ):
+            rows = db.query(EducationStatistic).filter_by(
+                stat_type=want, school_year=target_year
+            ).all()
+            if rows:
+                lines.append(
+                    f"- **{want.replace('_',' ').title()}:** {len(rows):,} rows statewide for {target_year}. "
+                    "Provide a specific district or town to see detail."
+                )
+            else:
+                lines.append(
+                    f"- No statewide rows found for stat_type='{want}' in {target_year}. "
+                    "Try a specific district or 'all' for a summary."
+                )
+
+        # If "all" summary, add homeschool percentage as a computed convenience
+        if want == "all":
+            key = year_trend_key(target_year)
+            grades = state_totals_by_grade(key) if key else {}
+            pub_total = sum(v for g, v in grades.items() if g.lower() != "preschool")
+            he_total, _ = sum_total("home_education", target_year)
+            np_total, _ = sum_total("nonpublic_enrollment", target_year)
+            denom = pub_total + he_total + np_total
+            if denom > 0 and he_total > 0:
+                pct = 100 * he_total / denom
+                lines.append("")
+                lines.append(
+                    f"**Share of NH school-age students in home education:** "
+                    f"~{pct:.1f}% ({he_total:,} of {denom:,} K–12 students across public + nonpublic + home ed)."
+                )
+
+        return "\n".join(lines)
     finally:
         db.close()
 
