@@ -83,7 +83,10 @@ def get_recent_conversations(hours=24):
                     {
                         "role": m.role,
                         "content": m.content[:2000],
-                        "tools": m.tool_calls_json[:500] if m.tool_calls_json else None,
+                        # Keep enough of the tool-calls JSON that the reviewer can see
+                        # ALL tool calls + result previews — short truncation here led
+                        # to a false-positive "fabricated citation" finding (Apr 16).
+                        "tools": m.tool_calls_json[:4000] if m.tool_calls_json else None,
                     }
                     for m in messages
                 ],
