@@ -136,7 +136,7 @@
 
   // Build DOM
   function buildWidget() {
-    // Floating button — pill with EdOpt lifesaver logo and "Need Assistance?" label
+    // Floating button — pill with EdOpt lifesaver logo and "Need Guidance?" label
     const btn = document.createElement("button");
     btn.className = "edopt-chat-button";
     btn.setAttribute("aria-label", "Open EdOpt chat");
@@ -144,7 +144,7 @@
       <span class="edopt-chat-button-logo">
         <img src="${API_BASE}/static/edopt-logo.png" alt="" />
       </span>
-      <span class="edopt-chat-button-label">Need Assistance?</span>
+      <span class="edopt-chat-button-label">Need Guidance?</span>
     `;
     btn.onclick = togglePanel;
 
