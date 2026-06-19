@@ -243,7 +243,7 @@
 
   function openInNewWindow() {
     // Open the chat in a dedicated browser window
-    var url = API_BASE + "/beta";
+    var url = API_BASE + "/";
     if (sessionId) {
       url += "?session_id=" + encodeURIComponent(sessionId);
     }

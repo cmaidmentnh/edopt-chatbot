@@ -8,7 +8,7 @@ import uuid
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -163,7 +163,7 @@ async def demo():
 
 @app.get("/api/session/{session_id}")
 async def get_session_messages(session_id: str):
-    """Return messages for an existing session (used by beta page expand)."""
+    """Return messages for an existing session (used by chat page expand)."""
     db = SessionLocal()
     try:
         messages = (
@@ -185,10 +185,16 @@ async def get_session_messages(session_id: str):
         db.close()
 
 
-@app.get("/beta", response_class=HTMLResponse)
-async def beta():
-    with open("templates/beta.html") as f:
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    with open("templates/chat.html") as f:
         return HTMLResponse(content=f.read())
+
+
+@app.get("/beta")
+async def beta():
+    # Backward compatibility for old /beta links and embeds.
+    return RedirectResponse(url="/")
 
 
 @app.get("/self-test", response_class=HTMLResponse)

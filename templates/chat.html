@@ -37,15 +37,6 @@
             opacity: 0.85;
             margin-top: 2px;
         }
-        .beta-badge {
-            background: rgba(255,255,255,0.2);
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 12px;
-            margin-left: auto;
-            letter-spacing: 0.5px;
-        }
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -376,7 +367,7 @@
             msg += 'What should I do next?';
 
             // Clean the URL so refreshing doesn't re-send
-            window.history.replaceState({}, '', '/beta');
+            window.history.replaceState({}, '', '/');
 
             return msg;
         }
@@ -402,7 +393,7 @@
                             addMessage(msg.content, msg.role);
                         }
                         // Clean URL so refresh doesn't re-fetch
-                        window.history.replaceState({}, '', '/beta');
+                        window.history.replaceState({}, '', '/');
                         return;
                     }
                 } catch (e) {}
