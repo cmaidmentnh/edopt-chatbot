@@ -29,7 +29,11 @@ logging.basicConfig(
 logger = logging.getLogger("daily_review")
 
 # Config
-REVIEW_EMAIL_TO = "chris@maidmentnh.com"
+REVIEW_EMAIL_TO = [
+    "chris@maidmentnh.com",
+    "kevin.tyson@edopt.org",
+    "jody.underwood@edopt.org",
+]
 REVIEW_EMAIL_FROM = "chatbot@edopt.org"
 NOTES_FILE = "review_notes.json"
 AWS_REGION = "us-east-1"
@@ -177,7 +181,7 @@ def send_email(subject, body_text):
     try:
         ses.send_email(
             Source=REVIEW_EMAIL_FROM,
-            Destination={"ToAddresses": [REVIEW_EMAIL_TO]},
+            Destination={"ToAddresses": REVIEW_EMAIL_TO},
             Message={
                 "Subject": {"Data": subject, "Charset": "UTF-8"},
                 "Body": {
@@ -185,7 +189,7 @@ def send_email(subject, body_text):
                 },
             },
         )
-        logger.info(f"Review email sent to {REVIEW_EMAIL_TO}")
+        logger.info(f"Review email sent to {', '.join(REVIEW_EMAIL_TO)}")
     except ClientError as e:
         logger.error(f"SES send failed: {e}")
         raise
