@@ -177,6 +177,32 @@ TOOLS = [
             "required": ["district_or_town"],
         },
     },
+    {
+        "name": "lookup_provider",
+        "description": (
+            "Look up a specific education provider BY NAME across the entire EdOpt.org directory, "
+            "with no location required. Use this whenever the user names a program, school, or "
+            "provider and asks whether it is listed, where it is, or what it offers "
+            "(e.g. 'Do you know The Learning Cove?', 'Tell me about Covered Bridge Montessori', "
+            "'Is X on your list?'). ALWAYS try this before saying a provider is not in the directory. "
+            "Do not use search_providers for name lookups — it requires a location and will miss "
+            "providers whose town the user did not mention."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": (
+                        "The provider name as the user wrote it. Partial names are fine "
+                        "(e.g. 'Learning Cove' will match 'The Learning Cove'). Leading articles "
+                        "like 'The' are ignored."
+                    ),
+                },
+            },
+            "required": ["name"],
+        },
+    },
 ]
 
 
@@ -184,6 +210,7 @@ def execute_tool(tool_name: str, tool_input: dict) -> str:
     """Route tool call to the appropriate handler."""
     handlers = {
         "search_providers": _handle_search_providers,
+        "lookup_provider": _handle_lookup_provider,
         "lookup_rsa": _handle_lookup_rsa,
         "search_legislation": _handle_search_legislation,
         "search_content": _handle_search_content,
@@ -342,8 +369,7 @@ def _handle_search_providers(
         return (
             f"No providers found near {name.title()}{keyword_text} matching your criteria.{nearby_text} "
             "Note: this search only covers the EdOpt.org provider directory, which is growing but may not yet include all specialized providers. "
-            "You might also consider online education options or Education Freedom Accounts (EFAs) "
-            "which can fund a wide range of education expenses."
+            "Online and statewide options may also be worth a look."
         )
 
     # Label sections for clarity
@@ -481,6 +507,105 @@ def _handle_statewide_provider_query(
         "To see *local* options (brick-and-mortar schools, tutoring, enrichment near you), "
         "tell me your town or county and I'll search within a radius."
     )
+    return "\n".join(lines)
+
+
+def _normalize_provider_name(value: str) -> str:
+    """Lowercase, drop a leading article and any non-alphanumeric characters."""
+    import re
+
+    text = (value or "").strip().lower()
+    text = re.sub(r"^(the|a|an)\s+", "", text)
+    return re.sub(r"[^a-z0-9]+", " ", text).strip()
+
+
+def _format_provider_detail(p) -> str:
+    """Render one provider as a markdown bullet with its EdOpt profile link."""
+    line = f"**{p.title}**"
+    if p.url:
+        line = f"[{p.title}]({p.url})"
+    if p.website and p.website != p.url:
+        line += f" | [Website]({p.website})"
+
+    parts = []
+    if p.address:
+        parts.append(f"Address: {p.address}")
+    if p.education_style:
+        parts.append(f"Type: {p.education_style.title()}")
+    if p.styles_raw:
+        parts.append(f"Styles: {p.styles_raw}")
+    if p.grade_start is not None and p.grade_end is not None:
+        gs = "Pre-K" if p.grade_start == -1 else "K" if p.grade_start == 0 else str(p.grade_start)
+        ge = "Post-Secondary" if p.grade_end == 13 else "K" if p.grade_end == 0 else str(p.grade_end)
+        parts.append(f"Grades: {gs} - {ge}")
+    if p.contact_phone:
+        parts.append(f"Phone: {p.contact_phone}")
+    if p.contact_email:
+        parts.append(f"Email: {p.contact_email}")
+    if p.contact_page:
+        parts.append(f"Contact page: {p.contact_page}")
+    if p.online_only:
+        parts.append("Available online statewide")
+    if p.description:
+        desc = p.description[:300] + "..." if len(p.description) > 300 else p.description
+        parts.append(f"Description: {desc}")
+
+    out = [f"- {line}"]
+    out.extend(f"  - {part}" for part in parts)
+    return "\n".join(out)
+
+
+def _handle_lookup_provider(name: str) -> str:
+    """Find a provider by name across the whole directory — no location needed.
+
+    search_providers requires a location and a radius, so a user who names a
+    provider without naming its town could never be matched. This closes that gap.
+    """
+    from fuzzywuzzy import fuzz
+
+    query = _normalize_provider_name(name)
+    if not query:
+        return "Please provide a provider name to look up."
+
+    db = SessionLocal()
+    try:
+        providers = db.query(Provider).all()
+    finally:
+        db.close()
+
+    exact, contains, fuzzy = [], [], []
+    for p in providers:
+        title_norm = _normalize_provider_name(p.title)
+        if not title_norm:
+            continue
+        if title_norm == query:
+            exact.append(p)
+        elif query in title_norm or title_norm in query:
+            contains.append(p)
+        else:
+            score = max(
+                fuzz.token_set_ratio(query, title_norm),
+                fuzz.partial_ratio(query, title_norm),
+            )
+            if score >= 88:
+                fuzzy.append((p, score))
+
+    fuzzy.sort(key=lambda x: -x[1])
+    matches = exact + contains + [p for p, _ in fuzzy]
+
+    if not matches:
+        return (
+            f"'{name}' is not in the EdOpt.org provider directory. "
+            "The directory is growing and does not yet include every provider in New Hampshire, "
+            "so this does not mean the program does not exist. "
+            "Providers can add themselves at https://edopt.org/add-your-provider/."
+        )
+
+    if len(matches) == 1:
+        return f"Found in the EdOpt.org directory:\n\n{_format_provider_detail(matches[0])}"
+
+    lines = [f"Found {len(matches)} possible matches for '{name}' in the EdOpt.org directory:\n"]
+    lines.extend(_format_provider_detail(p) for p in matches[:8])
     return "\n".join(lines)
 
 

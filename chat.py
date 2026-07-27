@@ -170,5 +170,5 @@ async def get_greeting() -> str:
         "Prefer to talk with a real person? "
         "[Schedule a free consultation](https://edopt.org/schedule-a-meeting/) "
         "with an EdOpt volunteer.\n\n"
-        "What can I help you with today?"
+        "**What can I help you with today?**"
     )

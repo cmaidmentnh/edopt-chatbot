@@ -7,10 +7,15 @@ Usage: python3 daily_review.py
 Cron:  0 8 * * * cd /opt/edopt-chatbot && /opt/edopt-chatbot/venv/bin/python3 daily_review.py
 """
 import json
+import csv
+import io
 import logging
 import os
 import sys
 from datetime import datetime, timezone, timedelta
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -175,20 +180,97 @@ Be specific and actionable. Reference actual conversation examples. Keep the tot
     return response.content[0].text
 
 
-def send_email(subject, body_text):
-    """Send review email via AWS SES."""
+def _html_escape(value):
+    return (
+        str(value or "")
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def build_transcript_html(conversations, title="EdOpt chatbot transcripts"):
+    """Render full conversation transcripts as a standalone HTML document."""
+    parts = [
+        "<!doctype html><html><head><meta charset='utf-8'>",
+        f"<title>{_html_escape(title)}</title>",
+        "<style>",
+        "body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;margin:24px;color:#1a1a2e;}",
+        "h1{font-size:20px;} h2{font-size:15px;margin:28px 0 8px;border-bottom:2px solid #1863DC;padding-bottom:4px;}",
+        ".meta{color:#64748b;font-size:12px;margin-bottom:12px;}",
+        ".turn{margin:10px 0;padding:10px 14px;border-radius:8px;line-height:1.5;font-size:14px;}",
+        ".user{background:#1863DC;color:#fff;} .assistant{background:#f1f5f9;}",
+        ".role{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;opacity:.75;}",
+        "pre{white-space:pre-wrap;word-wrap:break-word;margin:4px 0 0;font-family:inherit;}",
+        "</style></head><body>",
+        f"<h1>{_html_escape(title)}</h1>",
+        f"<div class='meta'>{len(conversations)} conversation(s). "
+        f"Generated {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}.</div>",
+    ]
+    for i, conv in enumerate(conversations, 1):
+        parts.append(
+            f"<h2>Conversation {i} — session {_html_escape(conv['session_id'])} "
+            f"— {_html_escape(conv['time'])}</h2>"
+        )
+        for m in conv["messages"]:
+            role = m["role"]
+            cls = "user" if role == "user" else "assistant"
+            parts.append(
+                f"<div class='turn {cls}'><div class='role'>{_html_escape(role)}</div>"
+                f"<pre>{_html_escape(m['content'])}</pre></div>"
+            )
+    parts.append("</body></html>")
+    return "".join(parts)
+
+
+def build_transcript_csv(conversations):
+    """Render transcripts as CSV: one row per message."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["session_id", "session_time", "ip", "turn", "role", "content"])
+    for conv in conversations:
+        for turn, m in enumerate(conv["messages"], 1):
+            writer.writerow([
+                conv["session_id"], conv["time"], conv["ip"] or "",
+                turn, m["role"], m["content"],
+            ])
+    return buf.getvalue()
+
+
+def send_email(subject, body_text, attachments=None):
+    """Send review email via AWS SES, optionally with file attachments.
+
+    Uses send_raw_email when attachments are present so full chat transcripts
+    can ride along with the analysis.
+    """
     ses = boto3.client("ses", region_name=AWS_REGION)
     try:
-        ses.send_email(
-            Source=REVIEW_EMAIL_FROM,
-            Destination={"ToAddresses": REVIEW_EMAIL_TO},
-            Message={
-                "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {
-                    "Text": {"Data": body_text, "Charset": "UTF-8"},
+        if not attachments:
+            ses.send_email(
+                Source=REVIEW_EMAIL_FROM,
+                Destination={"ToAddresses": REVIEW_EMAIL_TO},
+                Message={
+                    "Subject": {"Data": subject, "Charset": "UTF-8"},
+                    "Body": {
+                        "Text": {"Data": body_text, "Charset": "UTF-8"},
+                    },
                 },
-            },
-        )
+            )
+        else:
+            msg = MIMEMultipart()
+            msg["Subject"] = subject
+            msg["From"] = REVIEW_EMAIL_FROM
+            msg["To"] = ", ".join(REVIEW_EMAIL_TO)
+            msg.attach(MIMEText(body_text, "plain", "utf-8"))
+            for filename, content in attachments:
+                part = MIMEApplication(content.encode("utf-8"))
+                part.add_header("Content-Disposition", "attachment", filename=filename)
+                msg.attach(part)
+            ses.send_raw_email(
+                Source=REVIEW_EMAIL_FROM,
+                Destinations=REVIEW_EMAIL_TO,
+                RawMessage={"Data": msg.as_string()},
+            )
         logger.info(f"Review email sent to {', '.join(REVIEW_EMAIL_TO)}")
     except ClientError as e:
         logger.error(f"SES send failed: {e}")
@@ -246,12 +328,25 @@ Total user questions: {total_user_msgs}
 {analysis}
 
 ---
+Full transcripts of all {len(conversations)} conversation(s) in this period are attached
+(transcripts-{date_str}.html for reading, transcripts-{date_str}.csv for analysis).
+
 This is an automated daily review of the EdOpt chatbot at chatbot.edopt.org.
 View all conversations: https://chatbot.edopt.org/conversations
 """
 
-    # Send email
-    send_email(subject, body)
+    # Attach the full transcripts alongside the analysis
+    attachments = [
+        (
+            f"transcripts-{date_str}.html",
+            build_transcript_html(
+                conversations, title=f"EdOpt chatbot transcripts — {date_str}"
+            ),
+        ),
+        (f"transcripts-{date_str}.csv", build_transcript_csv(conversations)),
+    ]
+
+    send_email(subject, body, attachments=attachments)
     logger.info("Daily review complete")
 
 
