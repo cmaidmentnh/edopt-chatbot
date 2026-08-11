@@ -352,14 +352,26 @@ def _handle_search_providers(
                         break
                 break
 
-    # Sort local by distance, then append online providers after
-    local_results.sort(key=lambda x: x[1])
+    # Sort local by distance, then append online providers after.
+    # Ties on distance are common (whole towns share one coordinate), so break
+    # them in favour of providers whose own name matches the place that was
+    # searched — otherwise "upper valley" can push "Upper Valley Homeschoolers"
+    # past the display cap and report it as missing.
+    query_terms = {t for t in [(name or "").lower(), (location or "").strip().lower()] if t}
+
+    def _matches_location_name(p):
+        title = (p.title or "").lower()
+        return any(term in title for term in query_terms)
+
+    local_results.sort(key=lambda x: (round(x[1], 1), not _matches_location_name(x[0]), x[0].title or ""))
     online_results.sort(key=lambda x: x[0].title)  # alphabetical for online
 
     # Prioritize local results; only fill remaining slots with online
     max_local = min(len(local_results), 8)  # Reserve most slots for local
     max_online = 10 - max_local  # Fill rest with online
     results = local_results[:max_local] + online_results[:max_online]
+    hidden_local = len(local_results) - max_local
+    hidden_online = len(online_results) - min(len(online_results), max_online)
 
     if not results:
         nearby_text = ""
@@ -375,7 +387,14 @@ def _handle_search_providers(
     # Label sections for clarity
     n_local = sum(1 for p, d in results if not p.online_only)
     n_online = sum(1 for p, d in results if p.online_only)
-    header = f"Found {len(results)} education provider(s) near {name.title()}:\n"
+    total_matches = len(local_results) + len(online_results)
+    if total_matches > len(results):
+        header = (
+            f"Showing the {len(results)} closest of {total_matches} education provider(s) "
+            f"near {name.title()}:\n"
+        )
+    else:
+        header = f"Found {len(results)} education provider(s) near {name.title()}:\n"
     if synonym_used:
         header = f"No exact matches for '{keyword}', but found {len(results)} related provider(s) (matched on '{synonym_used}') near {name.title()}:\n"
     lines = [header]
@@ -425,6 +444,20 @@ def _handle_search_providers(
         lines.append(f"- {line}")
         for part in parts:
             lines.append(f"  - {part}")
+
+    # Never let the cap hide matches silently — the model has to know more exist
+    # so it can offer them instead of implying the list is complete.
+    if hidden_local or hidden_online:
+        hidden_bits = []
+        if hidden_local:
+            hidden_bits.append(f"{hidden_local} more within {radius_miles} miles")
+        if hidden_online:
+            hidden_bits.append(f"{hidden_online} more online/statewide")
+        lines.append(
+            f"\n[NOT SHOWN: {' and '.join(hidden_bits)}. This list is truncated, not complete — "
+            "do NOT tell the user these are the only matches. Offer to show the rest, or suggest "
+            "narrowing by town or grade.]"
+        )
 
     return "\n".join(lines)
 
