@@ -3,6 +3,7 @@ Chat orchestration: Claude Messages API with tool-use loop.
 """
 import json
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 
@@ -16,6 +17,56 @@ from tools import TOOLS, execute_tool
 logger = logging.getLogger(__name__)
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+# A trailing question sentence stuck on the end of a longer paragraph.
+_TRAILING_QUESTION = re.compile(r"(?<=[.!?])\s+([^.!?]{3,200}\?)$")
+
+
+def emphasize_closing_question(answer: str) -> str:
+    """Give the closing question its own bold paragraph.
+
+    The greeting hardcodes a bold closing question, so it stood out on the first
+    screen and nowhere else: later ones came back unbolded and often glued to the
+    end of the previous sentence, so users stopped noticing them and
+    conversations stalled. The system prompt asks for this, but asking is not
+    reliable enough on its own, so enforce it here too.
+    """
+    if not answer:
+        return answer
+
+    text = answer.rstrip()
+    # rstrip the emphasis markers first, or an already-bold question fails the check.
+    if not text.rstrip("*").endswith("?"):
+        return answer
+
+    lines = text.split("\n")
+    last = lines[-1].strip()
+
+    # Lists, headings and tables get left alone; splitting those mangles content.
+    # The bullet markers need the trailing space or "**bold**" looks like a list.
+    if not last or last.startswith(("- ", "* ", "#", ">", "|")):
+        return answer
+
+    if last.startswith("**") and last.endswith("**"):
+        # Already bold, so only the blank line above it may be missing.
+        question, body = last, lines[:-1]
+    else:
+        match = _TRAILING_QUESTION.search(last)
+        if match:
+            question = f"**{match.group(1).strip()}**"
+            lines[-1] = last[: match.start()].rstrip()
+            body = lines
+        elif len(last) <= 200:
+            question = f"**{last}**"
+            body = lines[:-1]
+        else:
+            # Too long to be a closing question; leave it as written.
+            return answer
+
+    while body and not body[-1].strip():
+        body.pop()
+
+    return "\n".join(body + ["", question]) if body else question
 
 
 def get_or_create_session(session_id: str, ip_address: str = None) -> str:
@@ -148,6 +199,8 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
 
     if not answer:
         answer = "I'm sorry, I wasn't able to generate a response. Could you try rephrasing your question?"
+
+    answer = emphasize_closing_question(answer)
 
     # Save messages to DB
     save_message(session_id, "user", user_message)
