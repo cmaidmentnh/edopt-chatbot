@@ -21,6 +21,46 @@ client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 # A trailing question sentence stuck on the end of a longer paragraph.
 _TRAILING_QUESTION = re.compile(r"(?<=[.!?])\s+([^.!?]{3,200}\?)$")
 
+# Sentence-ending punctuation followed by whitespace or end-of-text. The optional
+# closers let a sentence end inside quotes or parentheses; requiring whitespace
+# after keeps "8.5 miles" and "starhop.com/" from looking like sentence ends.
+_SENTENCE_END = re.compile(r"[.!?][\"')\]]*(?=\s|$)")
+
+_CONTINUE_PROMPT = "**Would you like me to keep going with the rest?**"
+
+
+def repair_truncated_answer(answer: str) -> str:
+    """Cut a reply that hit the token cap back to its last complete thought.
+
+    Hitting max_tokens ships whatever half-written sentence the model was on,
+    which reads to a parent as a broken bot. Ending one sentence early and
+    offering to continue is the honest version of the same reply.
+    """
+    text = answer.rstrip()
+    if not text:
+        return answer
+
+    # Everything before the last newline is a complete line; within the final
+    # line, the last sentence end is the safe cut. Take whichever reaches further
+    # so a long final paragraph keeps its finished sentences.
+    matches = list(_SENTENCE_END.finditer(text))
+    cut = max(
+        matches[-1].end() if matches else 0,
+        text.rfind("\n") + 1,
+    )
+    text = text[:cut].rstrip() if cut > 0 else ""
+
+    if not text:
+        # The whole reply was one unfinished sentence, so there is nothing to keep.
+        # Showing the fragment is worse than asking for a narrower question.
+        return (
+            "Sorry, that answer ran longer than I could fit in one reply.\n\n"
+            "**Could you narrow it down a little, such as a town, a grade level, "
+            "or a subject?**"
+        )
+
+    return f"{text}\n\n{_CONTINUE_PROMPT}"
+
 
 def emphasize_closing_question(answer: str) -> str:
     """Give the closing question its own bold paragraph.
@@ -199,6 +239,12 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
 
     if not answer:
         answer = "I'm sorry, I wasn't able to generate a response. Could you try rephrasing your question?"
+    elif response.stop_reason == "max_tokens":
+        logger.warning(
+            f"Response hit the {MAX_TOKENS}-token cap (session {session_id}); "
+            "trimming to the last complete sentence"
+        )
+        answer = repair_truncated_answer(answer)
 
     answer = emphasize_closing_question(answer)
 

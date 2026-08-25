@@ -91,7 +91,13 @@ def get_recent_conversations(hours=24):
                 "messages": [
                     {
                         "role": m.role,
-                        "content": m.content[:2000],
+                        # Store the reply in full. Capping it here used to cut long
+                        # replies mid-word, and that cut copy fed BOTH the analysis and
+                        # the attached transcripts — so the reviewer reported a
+                        # "critical truncation bug" the bot never had (Aug 24) and
+                        # readers saw the same half sentence in the attachment. Any
+                        # capping now happens in the prompt builder, clearly marked.
+                        "content": m.content,
                         # Keep enough of the tool-calls JSON that the reviewer can see
                         # ALL tool calls + result previews — short truncation here led
                         # to a false-positive "fabricated citation" finding (Apr 16).
@@ -120,6 +126,23 @@ def save_notes(notes):
         json.dump(notes, f, indent=2)
 
 
+# Only a runaway reply should ever be shortened for the prompt, and when one is,
+# say so out loud — an unmarked cut reads to the reviewer as a bot that stopped
+# mid-sentence, which is exactly the phantom bug the old 2000-char cap produced.
+PROMPT_CONTENT_LIMIT = 12000
+TRUNCATION_MARKER = (
+    "\n[SHORTENED FOR THIS REVIEW — the bot's actual reply continued past this "
+    "point and ended normally. Do NOT report this as a truncation bug.]"
+)
+
+
+def _for_prompt(content):
+    """Cap an over-long message for the analysis prompt, marking any cut clearly."""
+    if len(content) <= PROMPT_CONTENT_LIMIT:
+        return content
+    return content[:PROMPT_CONTENT_LIMIT] + TRUNCATION_MARKER
+
+
 def analyze_conversations(conversations, past_notes):
     """Use Claude to analyze conversations and suggest improvements."""
     client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
@@ -129,7 +152,7 @@ def analyze_conversations(conversations, past_notes):
         conv_text += f"\n--- Conversation {i} (session {conv['session_id']}, IP: {conv['ip'] or 'unknown'}, {conv['time']}) ---\n"
         for msg in conv["messages"]:
             role = "USER" if msg["role"] == "user" else "BOT"
-            conv_text += f"{role}: {msg['content']}\n"
+            conv_text += f"{role}: {_for_prompt(msg['content'])}\n"
             if msg.get("tools"):
                 conv_text += f"  [Tools used: {msg['tools']}]\n"
 
@@ -140,6 +163,12 @@ def analyze_conversations(conversations, past_notes):
 Here are ALL conversations from the last 24 hours:
 
 {conv_text}
+
+These transcripts are the complete stored replies, verbatim. If a reply looks like
+it stops mid-sentence, that is what the user actually saw and is worth reporting.
+The only exception is a reply carrying an explicit "[SHORTENED FOR THIS REVIEW]"
+marker — that one was shortened by this review script, not by the bot, so never
+report it as a truncation or incompleteness problem.
 
 Previously identified issues (avoid repeating these unless still present):
 {known_issues or "None yet."}
