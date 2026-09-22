@@ -5,7 +5,7 @@ load_dotenv()
 
 # Claude API
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
-CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+CLAUDE_MODEL = "claude-sonnet-5"
 
 # WordPress API
 WP_API_BASE = os.getenv("WP_API_BASE", "https://edopt.org/wp-json/wp/v2")
@@ -33,6 +33,6 @@ CORS_ORIGINS = os.getenv("CORS_ORIGINS", "https://edopt.org").split(",")
 
 # Chat
 MAX_HISTORY_TURNS = 15
-MAX_TOKENS = 2048
+MAX_TOKENS = 3072
 RATE_LIMIT = "15/minute"
 SESSION_TTL_HOURS = 24

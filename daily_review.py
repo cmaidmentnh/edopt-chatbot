@@ -201,8 +201,9 @@ Please analyze these conversations and provide:
 Be specific and actionable. Reference actual conversation examples. Keep the total response under 1200 words."""
 
     response = client.messages.create(
-        model="claude-sonnet-4-5-20250929",
-        max_tokens=2000,
+        model="claude-sonnet-5",
+        thinking={"type": "disabled"},
+        max_tokens=3000,
         messages=[{"role": "user", "content": prompt}],
     )
 

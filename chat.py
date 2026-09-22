@@ -182,6 +182,7 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
     try:
         response = client.messages.create(
             model=CLAUDE_MODEL,
+            thinking={"type": "disabled"},
             max_tokens=MAX_TOKENS,
             system=build_system_prompt(),
             tools=TOOLS,
@@ -222,6 +223,7 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
         try:
             response = client.messages.create(
                 model=CLAUDE_MODEL,
+                thinking={"type": "disabled"},
                 max_tokens=MAX_TOKENS,
                 system=build_system_prompt(),
                 tools=TOOLS,
