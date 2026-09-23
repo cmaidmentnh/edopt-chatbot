@@ -18,9 +18,15 @@ TOOLS = [
     {
         "name": "search_providers",
         "description": (
-            "Search for education providers near a New Hampshire location. "
-            "Use when the user asks about schools, programs, tutoring, enrichment, "
-            "or education options in a specific area."
+            "Search the EdOpt.org provider directory for education providers near a New Hampshire location. "
+            "Use when the user asks about schools, programs, tutoring, enrichment, or education options "
+            "in a specific area; for a provider the user names, use lookup_provider. "
+            "Returns up to 10 providers: up to 8 local ones sorted by distance, with online/statewide "
+            "providers filling the remaining slots. Each entry has its EdOpt profile link and, when listed, "
+            "its own website, address, distance, type, grades, phone, email, and a short description. "
+            "The header says when more matches exist than are shown. If a keyword matches nothing, the "
+            "search retries with related terms and names the term that matched. Covers only the EdOpt.org "
+            "directory, not the wider web."
         ),
         "input_schema": {
             "type": "object",
@@ -109,9 +115,12 @@ TOOLS = [
     {
         "name": "search_content",
         "description": (
-            "Search EdOpt.org educational content including blog posts, guides, glossary, "
-            "and resource pages. Use when the user asks general questions about education options, "
-            "EFA application process, differences between school types, or educational terminology."
+            "Semantic search over EdOpt.org's own content: blog posts, guides, glossary and resource "
+            "pages, plus provider profiles and RSA section titles that match the query. Use when the user "
+            "asks general questions about education options, the EFA application process, differences "
+            "between school types, or educational terminology. Returns up to 5 matches, each with a link "
+            "and a roughly 300-character excerpt, or a no-match message. Does not search the wider web; "
+            "for full statute text or bill status use lookup_rsa or search_legislation."
         ),
         "input_schema": {
             "type": "object",

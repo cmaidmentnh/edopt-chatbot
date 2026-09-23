@@ -17,6 +17,7 @@ from tools import TOOLS, execute_tool
 logger = logging.getLogger(__name__)
 
 client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+SYSTEM_BLOCKS = [{"type": "text", "text": build_system_prompt(), "cache_control": {"type": "ephemeral"}}]
 
 # A trailing question sentence stuck on the end of a longer paragraph.
 _TRAILING_QUESTION = re.compile(r"(?<=[.!?])\s+([^.!?]{3,200}\?)$")
@@ -184,7 +185,7 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
             model=CLAUDE_MODEL,
             thinking={"type": "disabled"},
             max_tokens=MAX_TOKENS,
-            system=build_system_prompt(),
+            system=SYSTEM_BLOCKS,
             tools=TOOLS,
             messages=messages,
         )
@@ -225,7 +226,7 @@ async def process_chat(session_id: str, user_message: str, ip_address: str = Non
                 model=CLAUDE_MODEL,
                 thinking={"type": "disabled"},
                 max_tokens=MAX_TOKENS,
-                system=build_system_prompt(),
+                system=SYSTEM_BLOCKS,
                 tools=TOOLS,
                 messages=messages,
             )

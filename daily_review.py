@@ -198,7 +198,7 @@ Please analyze these conversations and provide:
 
 6. **PRIORITY FIXES**: Top 3 most impactful changes to make, ranked.
 
-Be specific and actionable. Reference actual conversation examples. Keep the total response under 1200 words."""
+Be specific and actionable, and reference actual conversation examples. The readers are EdOpt staff skimming a daily email, so keep each section tight and lead with the findings that matter most."""
 
     response = client.messages.create(
         model="claude-sonnet-5",
