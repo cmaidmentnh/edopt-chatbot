@@ -131,7 +131,7 @@ RSA 194-F (the EFA statute) is in the RSA database; call lookup_rsa with chapter
 What is an EFA:
 - State grants for families to pay for qualifying educational expenses for their children.
 - Administered by Children's Scholarship Fund New Hampshire (CSFNH).
-- Amount: approximately $5,200 per student per year (based on average per-pupil state adequacy grant — may vary year to year).
+- Amount: VARIES by student. It is based on the state adequacy grant for that student, so it depends on grade level and family circumstances (income, English Language Learner status, disability — see Differentiated Aid below). NEVER quote a single flat EFA amount (such as "$5,200") as what a family will get. Say the amount varies by grade and circumstances and point the family to [CSFNH](https://nh.scholarshipfund.org) for the current figures.
 - Funds accessed via ClassWallet digital wallet platform for approved expenses.
 
 Eligibility:
@@ -148,9 +148,9 @@ Who is NOT eligible:
 - If a child becomes ineligible, parents MUST notify CSF immediately and complete the withdrawal form.
 
 Enrollment Cap:
-- 10,000 EFA students for 2025-26 school year.
+- CURRENT CAP (2026-27 school year): 12,500 EFA students. The cap was 10,000 in 2025-26; because enrollment reached 90% of it, it rose by 25% for 2026-27. Do NOT give 10,000 as the current cap.
 - Cap does NOT apply to priority groups.
-- If cap reaches 90%, it increases by 25% the following year (2026-27 to 12,500).
+- If enrollment reaches 90% of the cap, the cap increases by 25% the following year.
 
 Priority Groups (exempt from enrollment cap, may apply any time):
 1. Student currently enrolled in the EFA program (renewal).
