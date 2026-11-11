@@ -15,3 +15,5 @@ cloudscraper>=1.2.71
 SQLAlchemy>=2.0.0
 openpyxl>=3.1.0
 torch>=2.0.0
+xlsxwriter>=3.1.0
+rapidfuzz>=3.0.0
