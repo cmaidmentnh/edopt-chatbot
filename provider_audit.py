@@ -324,6 +324,8 @@ SHARED_HOSTS = ("google.com", "facebook.com", "fb.com", "instagram.com", "wixsit
                 "eventbrite.com", "meetup.com", "youtube.com", "linkedin.com", "twitter.com", "x.com",
                 "edlio.com", "finalsite.com", "schoolwires.net", "thrillshare.com", "apptegy.net",
                 "sharpschool.com", "jimdosite.com", "site123.me", "mailchimpsites.com", "canva.site")
+GENERIC_SLUG = {"academy", "school", "schools", "program", "programs", "page", "domain", "site", "index",
+                "home", "default", "aspx", "html", "htm", "php", "the", "and", "for", "new", "hampshire", "www"}
 BAD_PATH_WORDS = ("login", "signin", "sign-in", "sso", "auth", "404", "not-found", "notfound",
                   "error", "cdn-cgi", "captcha", "sorry", "suspended", "cgi-sys", "account")
 
@@ -359,6 +361,13 @@ def is_safe_redirect(orig, final):
     if o.path.strip("/") and not f.path.strip("/") and oh.removeprefix("www.") == fh.removeprefix("www."):
         # (a deep link moving to its own subdomain, e.g. sau57.org/fisk -> fisk.sau57.org, is fine)
         return False, "deep link now redirects to the homepage (page may be gone)"
+    op, fp = o.path.lower().strip("/"), f.path.lower().strip("/")
+    if op and fp and op != fp and op.startswith(fp + "/"):
+        return False, "now redirects to a parent/listing page (the specific page may be gone)"
+    oseg = set(re.findall(r"[a-z]{3,}", op.split("/")[-1])) - GENERIC_SLUG
+    fseg = set(re.findall(r"[a-z]{3,}", fp.split("/")[-1] if fp else "")) - GENERIC_SLUG
+    if oseg and fp and not (oseg & fseg) and not any(a in b or b in a for a in oseg for b in fseg):
+        return False, "page slug changed to a different name (could be a different program/school)"
     if f.query and not o.query:
         return False, "target adds a query string"
     if len(final) > 300:
