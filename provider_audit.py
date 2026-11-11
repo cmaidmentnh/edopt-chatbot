@@ -61,7 +61,7 @@ logging.getLogger("urllib3").setLevel(logging.ERROR)
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 ET = ZoneInfo("America/New_York")
-EMAIL_TO = ["chris@maidmentnh.com"]
+EMAIL_TO = ["jody.underwood@edopt.org", "kevin.tyson@edopt.org", "chris@maidmentnh.com"]
 EMAIL_FROM = "chatbot@edopt.org"
 AWS_REGION = "us-east-1"
 SITE = "https://edopt.org"
